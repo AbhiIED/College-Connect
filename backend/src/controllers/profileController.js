@@ -13,32 +13,66 @@ exports.getUserProfile = async (req, res) => {
           u.User_Lname AS lastName,
           u.Email_ID AS email, 
           u.Profile_Pic AS profilePic,
+          u.Gender AS gender,
+          u.Phone_no AS phone,
+          u.Phone_no_2 AS phone2,
+          u.Address AS address,
+          u.User_Type_ID AS userType,
+          a.Alumni_ID AS alumniId,
+          a.Enrollment_No AS enrollmentNo,
           a.Graduation_Year AS graduationYear,
           a.Department AS department,
           a.Course AS course,
           a.Job_Title AS jobTitle,
           a.Company_Name AS companyName,
+          a.Current_City AS currentCity,
+          a.Current_Country AS currentCountry,
           a.Sector AS sector,
           a.Skills AS skills,
-          a.About AS about
+          a.About AS about,
+          s.Student_ID AS studentId,
+          s.Scholar_No AS scholarNo,
+          s.Department AS studentDepartment,
+          s.Course AS studentCourse,
+          s.Current_Year AS currentYear,
+          s.Graduation_Year AS studentGraduationYear
        FROM User_Table u
        LEFT JOIN Alumni_Table a ON u.User_ID = a.User_ID
+       LEFT JOIN Student_Table s ON u.User_ID = s.User_ID
        WHERE u.User_ID = ?`,
       [userId]
     );
 
-
-
     if (!rows.length) return res.status(404).json({ error: "User not found" });
 
-    const user = rows[0];
+    const row = rows[0];
 
-    if (user.profilePic) {
-      // Return relative path; frontend prepends API_BASE_URL
-      user.profilePic = user.profilePic;
-    } else {
-      user.profilePic = "";
-    }
+    // Normalize: prefer alumni data, fall back to student data
+    const user = {
+      id: row.id,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      email: row.email,
+      profilePic: row.profilePic || "",
+      gender: row.gender || "",
+      phone: row.phone || "",
+      phone2: row.phone2 || "",
+      address: row.address || "",
+      userType: row.userType,
+      userRole: row.userType === 1 ? "Alumni" : row.userType === 2 ? "Student" : "Admin",
+      enrollmentNo: row.enrollmentNo || row.scholarNo || "",
+      department: row.department || row.studentDepartment || "",
+      course: row.course || row.studentCourse || "",
+      graduationYear: row.graduationYear || row.studentGraduationYear || "",
+      currentYear: row.currentYear || null,
+      jobTitle: row.jobTitle || "",
+      companyName: row.companyName || "",
+      currentCity: row.currentCity || "",
+      currentCountry: row.currentCountry || "",
+      sector: row.sector || "",
+      skills: row.skills || "",
+      about: row.about || "",
+    };
 
     res.json(user);
   } catch (err) {
