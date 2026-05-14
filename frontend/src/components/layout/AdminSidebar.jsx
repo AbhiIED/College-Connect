@@ -28,7 +28,7 @@ import Loader from "@/pages/Loader";
         <div className="p-6">
           <NavLink to="/admin-dashboard" className="flex items-center mb-8">
           <h2 className="text-2xl font-bold text-blue-600 tracking-tight mb-8 text-center">
-            AlumniSphere
+            CollegeConnect
           </h2>
           </NavLink>
 

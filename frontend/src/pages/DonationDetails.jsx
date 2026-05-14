@@ -50,7 +50,7 @@ export default function DonationDetails() {
         key,
         amount: order.amount,
         currency: "INR",
-        name: "AlumniSphere Foundation",
+        name: "CollegeConnect Foundation",
         description: cause.title,
         image: cause.image,
         order_id: order.id,

@@ -1,59 +1,59 @@
 [
   {
-    "Tables_in_alumnisphere": "admin_table"
+    "Tables_in_collegeconnect": "admin_table"
   },
   {
-    "Tables_in_alumnisphere": "alumni_table"
+    "Tables_in_collegeconnect": "alumni_table"
   },
   {
-    "Tables_in_alumnisphere": "chat_message"
+    "Tables_in_collegeconnect": "chat_message"
   },
   {
-    "Tables_in_alumnisphere": "donation"
+    "Tables_in_collegeconnect": "donation"
   },
   {
-    "Tables_in_alumnisphere": "event_registration"
+    "Tables_in_collegeconnect": "event_registration"
   },
   {
-    "Tables_in_alumnisphere": "event_table"
+    "Tables_in_collegeconnect": "event_table"
   },
   {
-    "Tables_in_alumnisphere": "job_postings"
+    "Tables_in_collegeconnect": "job_postings"
   },
   {
-    "Tables_in_alumnisphere": "news"
+    "Tables_in_collegeconnect": "news"
   },
   {
-    "Tables_in_alumnisphere": "otp_verification"
+    "Tables_in_collegeconnect": "otp_verification"
   },
   {
-    "Tables_in_alumnisphere": "post"
+    "Tables_in_collegeconnect": "post"
   },
   {
-    "Tables_in_alumnisphere": "post_comment"
+    "Tables_in_collegeconnect": "post_comment"
   },
   {
-    "Tables_in_alumnisphere": "post_like"
+    "Tables_in_collegeconnect": "post_like"
   },
   {
-    "Tables_in_alumnisphere": "project"
+    "Tables_in_collegeconnect": "project"
   },
   {
-    "Tables_in_alumnisphere": "student_table"
+    "Tables_in_collegeconnect": "student_table"
   },
   {
-    "Tables_in_alumnisphere": "transactions"
+    "Tables_in_collegeconnect": "transactions"
   },
   {
-    "Tables_in_alumnisphere": "user_connection"
+    "Tables_in_collegeconnect": "user_connection"
   },
   {
-    "Tables_in_alumnisphere": "user_settings"
+    "Tables_in_collegeconnect": "user_settings"
   },
   {
-    "Tables_in_alumnisphere": "user_table"
+    "Tables_in_collegeconnect": "user_table"
   },
   {
-    "Tables_in_alumnisphere": "user_type_table"
+    "Tables_in_collegeconnect": "user_type_table"
   }
 ]

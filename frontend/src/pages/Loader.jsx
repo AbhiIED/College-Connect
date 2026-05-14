@@ -12,7 +12,7 @@ function Loader() {
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold mb-3">Welcome To AlumniSphere</h1>
+        <h1 className="text-2xl font-bold mb-3">Welcome To CollegeConnect</h1>
         <p className="text-sm text-gray-600 mb-6 mt-10">
           Reconnect with your peers, celebrate milestones, and unlock exclusive
           opportunities across our alumni community.

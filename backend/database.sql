@@ -1,5 +1,5 @@
 -- ============================================================
--- AlumniSphere - Complete Fresh Database Schema
+-- CollegeConnect - Complete Fresh Database Schema
 -- ============================================================
 -- This script DROPS all existing tables and recreates them
 -- with 0 records. All data will be permanently deleted.
@@ -7,9 +7,9 @@
 -- Usage:  mysql -u root -p < database.sql
 -- ============================================================
 
-DROP DATABASE IF EXISTS AlumniSphere;
-CREATE DATABASE AlumniSphere;
-USE AlumniSphere;
+DROP DATABASE IF EXISTS CollegeConnect;
+CREATE DATABASE CollegeConnect;
+USE CollegeConnect;
 
 -- ============================================================
 -- 1. User_Type_Table  (lookup / reference table)
