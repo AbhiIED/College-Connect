@@ -1,115 +1,161 @@
 import React, { useState, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Search, UserPlus, Check, ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { Link } from "react-router-dom";
+
+const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 export default function HeroSection() {
   const [alumni, setAlumni] = useState([]);
-  const [filteredAlumni, setFilteredAlumni] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState("");
-  const [sentRequests, setSentRequests] = useState([]);
+  const [sent, setSent] = useState([]);
+  const [scrollEl, setScrollEl] = useState(null);
 
   useEffect(() => {
-    const fetchAlumni = async () => {
-      try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-        const res = await fetch(`${API_BASE_URL}/alumni-hero`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }); const data = await res.json();
-        setAlumni(data);
-        setFilteredAlumni(data);
-        console.log(data);
-
-      } catch (err) {
-        console.error("Error fetching alumni:", err);
-      }
-    };
-    fetchAlumni();
+    fetch(`${API}/alumni/hero`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAlumni(data);
+          setFiltered(data);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (!search.trim()) {
-      setFilteredAlumni(alumni);
-    } else {
-      setFilteredAlumni(
+    if (!search.trim()) setFiltered(alumni);
+    else
+      setFiltered(
         alumni.filter(
           (m) =>
-            m.name.toLowerCase().includes(search.toLowerCase()) ||
-            m.course.toLowerCase().includes(search.toLowerCase())
+            m.name?.toLowerCase().includes(search.toLowerCase()) ||
+            m.course?.toLowerCase().includes(search.toLowerCase())
         )
       );
-    }
   }, [search, alumni]);
 
-  const handleToggleConnect = (index) => {
-    if (sentRequests.includes(index)) {
-      setSentRequests(sentRequests.filter((i) => i !== index));
-    } else {
-      setSentRequests([...sentRequests, index]);
-    }
+  const scroll = (dir) => {
+    if (!scrollEl) return;
+    const amount = 320;
+    scrollEl.scrollBy({ left: dir === "left" ? -amount : amount, behavior: "smooth" });
   };
 
+  if (alumni.length === 0) return null;
+
   return (
-    <section className="bg-gray-50 py-16 mt-10">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        {/* Title */}
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Stay Connected with your Batchmates
-          </h2>
-        </div>
-
-        {/* Search Bar */}
-        <div className="w-full max-w-md mx-auto mt-5">
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-5 w-5 text-gray-400" />
-            </span>
-            <input
-              type="text"
-              placeholder="Search by Graduation Year or Course name"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-gray-600 pl-10 pr-4 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            />
+    <section className="py-16 px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+              <Users className="w-4 h-4 text-indigo-600" />
+            </div>
+            <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Your Network</span>
           </div>
+          <h2 className="text-3xl font-bold text-gray-900">
+            Connect with Batchmates
+          </h2>
+          <p className="mt-1 text-gray-500 text-sm max-w-md">
+            Discover alumni from your department and build professional connections
+          </p>
         </div>
 
-        <div className="mt-12 overflow-x-auto">
-          <ul
-            role="list"
-            className="flex space-x-8 snap-x snap-mandatory overflow-x-scroll pb-4"
-          >
-            {filteredAlumni.map((member, index) => {
-              const isSent = sentRequests.includes(index);
-              return (
-                <li
-                  key={index}
-                  className="flex flex-col items-center text-center snap-center min-w-[120px]"
+        {/* Search */}
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by name or course..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white shadow-sm transition"
+          />
+        </div>
+      </div>
+
+      {/* Carousel */}
+      <div className="relative group">
+        {/* Nav arrows */}
+        <button
+          onClick={() => scroll("left")}
+          className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-50"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <button
+          onClick={() => scroll("right")}
+          className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-50"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-600" />
+        </button>
+
+        <div
+          ref={setScrollEl}
+          className="flex gap-4 overflow-x-auto scroll-smooth pb-4 scrollbar-none snap-x snap-mandatory"
+        >
+          {filtered.map((member, i) => {
+            const isSent = sent.includes(i);
+            return (
+              <div
+                key={i}
+                className="flex-none w-48 snap-start bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all p-5 flex flex-col items-center text-center group/card"
+              >
+                {/* Avatar */}
+                <div className="relative mb-3">
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden bg-indigo-50 shadow-sm">
+                    <img
+                      src={member.img}
+                      alt={member.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=6366f1&color=fff&size=80`;
+                      }}
+                    />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white" />
+                </div>
+
+                <h3 className="text-sm font-semibold text-gray-900 truncate w-full">
+                  {member.name}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5 truncate w-full">
+                  {member.course}
+                </p>
+
+                <button
+                  onClick={() =>
+                    setSent((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]))
+                  }
+                  className={`mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    isSent
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+                  }`}
                 >
-                  <img
-                    className="h-20 w-20 rounded-full object-cover shadow-sm"
-                    src={member.img}
-                    alt={member.name}
-                  />
-                  <h3 className="mt-2 text-sm font-semibold text-gray-900">
-                    {member.name}
-                  </h3>
-                  <p className="text-xs text-gray-600">{member.course}</p>
-
-                  {/* Toggle Button */}
-                  <button
-                    onClick={() => handleToggleConnect(index)}
-                    className={`mt-2 px-4 py-1.5 text-xs font-semibold rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 ${isSent
-                        ? "bg-amber-600 text-white hover:bg-amber-700 hover:shadow-lg focus:ring-amber-500"
-                        : "bg-amber-600 text-white hover:bg-amber-700 hover:shadow-lg focus:ring-amber-500"
-                      }`}
-                  >
-                    {isSent ? "Sent" : "Connect"}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                  {isSent ? (
+                    <><Check className="w-3.5 h-3.5" /> Sent</>
+                  ) : (
+                    <><UserPlus className="w-3.5 h-3.5" /> Connect</>
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
+      </div>
+
+      {/* View all link */}
+      <div className="mt-6 text-center">
+        <Link
+          to="/directory"
+          className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition"
+        >
+          View full alumni directory <ChevronRight className="w-4 h-4" />
+        </Link>
       </div>
     </section>
   );
