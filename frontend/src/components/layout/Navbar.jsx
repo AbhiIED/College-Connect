@@ -84,17 +84,15 @@ export default function Navbar() {
 
   /* ── active-link helper ── */
   const linkClass = ({ isActive }) =>
-    `relative flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-      isActive
-        ? "text-indigo-600 bg-indigo-50"
-        : "text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/60"
+    `relative flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
+      ? "text-indigo-600 bg-indigo-50"
+      : "text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/60"
     }`;
 
   const mobileLinkClass = ({ isActive }) =>
-    `flex items-center gap-3 px-4 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${
-      isActive
-        ? "text-indigo-700 bg-indigo-50 border-l-4 border-indigo-600"
-        : "text-gray-700 hover:text-indigo-600 hover:bg-indigo-50/60"
+    `flex items-center gap-3 px-4 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${isActive
+      ? "text-indigo-700 bg-indigo-50 border-l-4 border-indigo-600"
+      : "text-gray-700 hover:text-indigo-600 hover:bg-indigo-50/60"
     }`;
 
   /* ── sample notifications ── */
@@ -117,11 +115,10 @@ export default function Navbar() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-          scrolled
+        className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled
             ? "bg-white/80 backdrop-blur-xl shadow-lg shadow-indigo-100/30 border-b border-gray-200/60"
             : "bg-white/95 backdrop-blur-md border-b border-gray-100"
-        }`}
+          }`}
       >
         <nav
           aria-label="Global"

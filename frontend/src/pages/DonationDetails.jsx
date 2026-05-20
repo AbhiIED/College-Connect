@@ -58,8 +58,8 @@ export default function DonationDetails() {
           alert("Payment successful! 🎉");
         },
         prefill: {
-          name: "Nidhi",
-          email: "nidhi@example.com",
+          name: "Pragya",
+          email: "Pragya@example.com",
         },
         theme: { color: "#F59E0B" },
       };
