@@ -1,10 +1,17 @@
 const pool = require("../config/db");
 
-// Get all published news
+// Get all published news (or all news if query param all=true)
 exports.getAllNews = async (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit) : null;
-    let query = `SELECT * FROM News WHERE Is_Published = 1 ORDER BY Published_At DESC`;
+    const showAll = req.query.all === "true";
+    
+    let query = `SELECT * FROM News`;
+    if (!showAll) {
+      query += ` WHERE Is_Published = 1`;
+    }
+    query += ` ORDER BY Published_At DESC`;
+    
     if (limit) query += ` LIMIT ${limit}`;
 
     const [rows] = await pool.query(query);
