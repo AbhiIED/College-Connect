@@ -3,16 +3,26 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* === Alumni App Theme Utilities === */
+/* === Alumni Connect — Design System === */
 :root {
-  --color-primary: #3b82f6;
-  --color-secondary: #8b5cf6;
-  --color-background: #f9fafb;
+  /* Brand Colors */
+  --color-primary: #4f46e5;
+  --color-primary-light: #6366f1;
+  --color-primary-dark: #3730a3;
+  --color-secondary: #7c3aed;
+  --color-accent: #06b6d4;
+  --color-background: #f8fafc;
   --color-card: #ffffff;
-  --color-text-primary: #111827;
-  --color-text-secondary: #6b7280;
-  --color-divider: #e5e7eb;
-  --color-button-hover: #2563eb;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-divider: #e2e8f0;
+  --color-button-hover: #4338ca;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* shadcn tokens */
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -47,65 +57,88 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* Backgrounds */
-.bg-primary {
-  background-color: var(--color-primary);
-}
-.bg-secondary {
-  background-color: var(--color-secondary);
-}
-.bg-background {
-  background-color: var(--color-background);
-}
-.bg-card {
-  background-color: var(--color-card);
+/* === Typography === */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Text */
-.text-primary {
-  color: var(--color-text-primary);
-}
-.text-secondary {
-  color: var(--color-text-secondary);
+/* === Background Utilities === */
+.bg-primary { background-color: var(--color-primary); }
+.bg-secondary { background-color: var(--color-secondary); }
+.bg-background { background-color: var(--color-background); }
+.bg-card { background-color: var(--color-card); }
+
+/* === Text Utilities === */
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+
+/* === Gradient Text === */
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Button */
+/* === Button Styles === */
 .btn-primary {
-  @apply text-white font-medium rounded-lg px-4 py-2 transition-colors;
+  @apply text-white font-medium rounded-xl px-5 py-2.5 transition-all duration-200;
   background-color: var(--color-primary);
 }
 .btn-primary:hover {
   background-color: var(--color-button-hover);
+  @apply shadow-lg shadow-indigo-200/50 -translate-y-0.5;
 }
 
-/* Divider */
-.divider {
+.btn-ghost {
+  @apply font-medium rounded-xl px-5 py-2.5 transition-all duration-200 border;
+  color: var(--color-primary);
   border-color: var(--color-divider);
+  background: transparent;
 }
-/* Thin scrollbar */
+.btn-ghost:hover {
+  @apply bg-indigo-50 border-indigo-200 -translate-y-0.5;
+}
+
+/* === Card Hover Animation === */
+.card-hover {
+  @apply transition-all duration-300 ease-out;
+}
+.card-hover:hover {
+  @apply -translate-y-1.5 shadow-xl shadow-indigo-100/40;
+}
+
+/* === Badge Chip === */
+.badge-chip {
+  @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold;
+}
+
+/* === Divider === */
+.divider { border-color: var(--color-divider); }
+
+/* === Scrollbar === */
 ::-webkit-scrollbar {
-  height: 10px;   /*  smaller height for horizontal scrollbar */
-  width: 6px;    /*  smaller width for vertical scrollbar */
+  height: 8px;
+  width: 5px;
 }
-
 ::-webkit-scrollbar-track {
-  background: transparent; /* optional */
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background-color: #727b86; /* Tailwind gray-300 */
-  border-radius: 9999px;     /* rounded */
+  background-color: #cbd5e1;
+  border-radius: 9999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #4c78b6; /* Tailwind gray-400 */
+  background-color: #94a3b8;
 }
 
 [data-scroll-container] {
-  /* Optional: helps with layout */
   will-change: transform;
 }
 
+/* === shadcn theme inline === */
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -144,6 +177,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* === Dark Mode === */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -186,14 +220,8 @@
     @apply bg-background text-foreground;
   }
 }
-/* ===== Dialog width override ===== */
-[data-state="open"].dialog-wide,
-[data-state="open"].dialog-wide > div {
-  width: 90vw !important;
-  max-width: 1200px !important;
-  height: 85vh !important;
-}
-/* ===== Dialog width override ===== */
+
+/* === Dialog Width Override === */
 [data-state="open"].dialog-wide,
 [data-state="open"].dialog-wide > div {
   width: 90vw !important;
@@ -201,11 +229,35 @@
   height: 85vh !important;
 }
 
-/* === Override Radix default dialog width === */
-[data-state="open"].dialog-wide,
-[data-state="open"].dialog-wide > div {
-  width: 90vw !important;       /* 90% of viewport width */
-  max-width: 1200px !important; /* Maximum width */
-  height: 85vh !important;      /* Adjust height */
+/* === Animations === */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
+.animate-slide-up {
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
