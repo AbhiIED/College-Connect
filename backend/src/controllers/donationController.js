@@ -3,10 +3,24 @@ const Razorpay = require("razorpay");
 const crypto = require("crypto");
 require("dotenv").config();
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Initialize Razorpay safely with a fallback placeholder if keys are missing
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID || "";
+const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || "";
+
+let razorpay = null;
+if (razorpayKeyId && razorpayKeyId !== "your_razorpay_key_id") {
+  try {
+    razorpay = new Razorpay({
+      key_id: razorpayKeyId,
+      key_secret: razorpayKeySecret,
+    });
+  } catch (err) {
+    console.error("⚠️ Warning: Failed to initialize Razorpay:", err.message);
+  }
+} else {
+  console.warn("⚠️ Warning: Razorpay credentials are not configured. Donation payments will be disabled.");
+}
+
 
 // Get all donation projects
 exports.getAllProjects = async (req, res) => {
@@ -72,6 +86,10 @@ exports.getProjectById = async (req, res) => {
 exports.createOrder = async (req, res) => {
   try {
     const { amount } = req.body;
+
+    if (!razorpay) {
+      return res.status(400).json({ error: "Razorpay is not configured on this server." });
+    }
 
     const options = {
       amount: amount * 100,
