@@ -257,9 +257,18 @@ exports.getUserById = async (req, res) => {
   try {
     const [user] = await db.query(
       `SELECT u.User_ID, u.User_Fname, u.User_Lname, u.Email_ID, u.Phone_no, u.Gender, u.Address, u.Is_Verified,
-        ut.User_Type_name AS User_Type
+        ut.User_Type_name AS User_Type,
+        -- Student fields
+        s.Scholar_No, s.Department AS Student_Department, s.Course AS Student_Course,
+        s.Current_Year, s.Graduation_Year AS Student_Graduation_Year,
+        -- Alumni fields
+        a.Enrollment_No, a.Department AS Alumni_Department, a.Course AS Alumni_Course,
+        a.Graduation_Year AS Alumni_Graduation_Year, a.Job_Title, a.Company_Name,
+        a.Current_City, a.Current_Country, a.Sector, a.Skills, a.About
       FROM User_Table u
       JOIN User_Type_Table ut ON u.User_Type_ID = ut.User_Type_ID
+      LEFT JOIN Student_Table s ON u.User_ID = s.User_ID
+      LEFT JOIN Alumni_Table a ON u.User_ID = a.User_ID
       WHERE u.User_ID = ?`,
       [req.params.id]
     );

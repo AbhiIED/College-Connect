@@ -16,7 +16,13 @@ import {
   Mail,
   UserCheck,
   MoreVertical,
-  X
+  X,
+  GraduationCap,
+  Building2,
+  Briefcase,
+  BookOpen,
+  Globe,
+  Award
 } from "lucide-react";
 
 export default function UsersPage() {
@@ -374,7 +380,7 @@ export default function UsersPage() {
 
       {/* ── Modal 1: User Profile Details view ── */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent className="max-w-md bg-white p-6 rounded-2xl shadow-xl border border-gray-100 font-sans">
+        <DialogContent className="max-w-md bg-white p-6 rounded-2xl shadow-xl border border-gray-100 font-sans max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4 border-b border-gray-100 flex flex-row items-center justify-between">
             <div>
               <DialogTitle className="text-xl font-bold font-display text-gray-900">
@@ -425,6 +431,108 @@ export default function UsersPage() {
                   </Badge>
                 </div>
               </div>
+
+              {/* Academic Profile (For Students) */}
+              {selectedUser.User_Type === "Student" && (
+                <div className="space-y-3 pt-3 border-t border-gray-100">
+                  <h5 className="font-bold text-gray-900 font-display text-sm flex items-center gap-1.5">
+                    <GraduationCap className="h-4.5 w-4.5 text-brand-600" />
+                    Academic Profile
+                  </h5>
+                  <div className="grid grid-cols-1 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100 text-sm">
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Scholar No:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Scholar_No || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Department:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Student_Department || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Course:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Student_Course || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Current Year:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Current_Year || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5">
+                      <span className="text-gray-400 font-medium">Graduation Year:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Student_Graduation_Year || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Professional Profile (For Alumni) */}
+              {selectedUser.User_Type === "Alumni" && (
+                <div className="space-y-3 pt-3 border-t border-gray-100">
+                  <h5 className="font-bold text-gray-900 font-display text-sm flex items-center gap-1.5">
+                    <Briefcase className="h-4.5 w-4.5 text-brand-600" />
+                    Professional & Alumni Profile
+                  </h5>
+                  <div className="grid grid-cols-1 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100 text-sm">
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Enrollment No:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Enrollment_No || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Department:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Alumni_Department || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Course:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Alumni_Course || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Graduation Year:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Alumni_Graduation_Year || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Job Title:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Job_Title || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Company Name:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Company_Name || "—"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Current Location:</span>
+                      <span className="font-semibold text-gray-700">
+                        {selectedUser.Current_City && selectedUser.Current_Country 
+                          ? `${selectedUser.Current_City}, ${selectedUser.Current_Country}` 
+                          : selectedUser.Current_City || selectedUser.Current_Country || "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium">Sector:</span>
+                      <span className="font-semibold text-gray-700">{selectedUser.Sector || "—"}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 py-0.5 border-b border-gray-100/50">
+                      <span className="text-gray-400 font-medium flex items-center gap-1">
+                        <Award className="h-3.5 w-3.5" /> Skills:
+                      </span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedUser.Skills ? (
+                          selectedUser.Skills.split(",").map((s, idx) => (
+                            <Badge key={idx} variant="outline" className="text-3xs bg-white text-gray-600 border-gray-200">
+                              {s.trim()}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-gray-500 font-medium italic text-xs">No skills listed</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1 py-0.5">
+                      <span className="text-gray-400 font-medium">About:</span>
+                      <p className="text-xs text-gray-600 bg-white p-2.5 rounded-lg border border-gray-100 leading-relaxed max-h-24 overflow-y-auto whitespace-pre-line">
+                        {selectedUser.About || "No bio description provided."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-center py-6 text-sm text-gray-500 font-medium">Loading credentials...</p>
