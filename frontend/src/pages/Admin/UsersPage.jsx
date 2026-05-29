@@ -186,7 +186,14 @@ export default function UsersPage() {
   };
 
   const filteredUsers = users.filter((user) => {
-    const matchesType = filterType === "All" || user.User_Type === filterType;
+    let matchesType = false;
+    if (filterType === "All") {
+      matchesType = true;
+    } else if (filterType === "Pending") {
+      matchesType = !user.Is_Verified && user.User_Type !== "Admin";
+    } else {
+      matchesType = user.User_Type === filterType;
+    }
     const matchesSearch =
       user.User_Fname.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.User_Lname.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -235,7 +242,7 @@ export default function UsersPage() {
             Filter:
           </span>
           <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200/50">
-            {["All", "Alumni", "Student", "Admin"].map((type) => (
+            {["All", "Alumni", "Student", "Admin", "Pending"].map((type) => (
               <button
                 key={type}
                 onClick={() => setFilterType(type)}
@@ -245,7 +252,7 @@ export default function UsersPage() {
                     : "text-gray-600 hover:text-brand-600"
                 }`}
               >
-                {type === "All" ? "All Users" : type}
+                {type === "All" ? "All Users" : type === "Pending" ? "Pending Approval" : type}
               </button>
             ))}
           </div>

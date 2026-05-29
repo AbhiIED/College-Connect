@@ -40,7 +40,11 @@ import {
   ArrowRight,
   FileText,
   Calendar,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Search,
+  X,
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 
 export default function ProjectsPage() {
@@ -49,6 +53,9 @@ export default function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [activeTab, setActiveTab] = useState("projects");
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
@@ -81,10 +88,27 @@ export default function ProjectsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+
+  const [ledgerSearchQuery, setLedgerSearchQuery] = useState("");
+  const [ledgerCategoryFilter, setLedgerCategoryFilter] = useState("All");
 
   const categories = ["Education", "Health", "Environment", "Welfare", "Infrastructure", "Other"];
   const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
   const token = localStorage.getItem("token");
+
+  const showToast = (type, message) => {
+    setToast({ type, message });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const getAuthHeaders = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -100,20 +124,55 @@ export default function ProjectsPage() {
       category: p.category ?? p.Category ?? "",
       status: p.status ?? p.Project_Status ?? "Ongoing",
       image: p.image ?? p.Image ?? null,
-      startDate: p.Start_Date ? p.Start_Date.split("T")[0] : null,
-      endDate: p.End_Date ? p.End_Date.split("T")[0] : null,
+      startDate: p.startDate ?? (p.Start_Date ? p.Start_Date.split("T")[0] : null),
+      endDate: p.endDate ?? (p.End_Date ? p.End_Date.split("T")[0] : null),
     }));
+
+  const loadData = async () => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const resProj = await fetch(`${API_BASE}/admin/projects`, {
+        headers: getAuthHeaders(),
+      });
+      if (!resProj.ok) throw new Error("Failed to fetch campaigns");
+      const dataProj = await resProj.json();
+      setProjects(normalizeProjects(dataProj));
+
+      try {
+        const resDon = await fetch(`${API_BASE}/admin/donations`, {
+          headers: getAuthHeaders(),
+        });
+        if (resDon.ok) {
+          const dataDon = await resDon.json();
+          setAllDonations(dataDon);
+        }
+      } catch (err) {
+        console.error("Donation ledger query failed to sync.", err);
+      }
+    } catch (err) {
+      console.error(err);
+      setFetchError(err.message || "Failed to establish a secure database channel.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const fetchProjects = async () => {
     try {
       const res = await fetch(`${API_BASE}/admin/projects`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error("Failed to fetch projects");
+      if (!res.ok) throw new Error("Failed to sync campaigns list");
       const data = await res.json();
       setProjects(normalizeProjects(data));
     } catch (err) {
       console.error(err);
+      showToast("error", err.message);
     }
   };
 
@@ -127,14 +186,9 @@ export default function ProjectsPage() {
         setAllDonations(data);
       }
     } catch (err) {
-      console.error("Failed to fetch all donations log", err);
+      console.error("Failed to sync transaction ledger.", err);
     }
   };
-
-  useEffect(() => {
-    fetchProjects();
-    fetchAllDonations();
-  }, []);
 
   const fetchTransactions = async (projectId) => {
     try {
@@ -148,7 +202,7 @@ export default function ProjectsPage() {
       const data = await res.json();
       setTransactions(data);
     } catch (err) {
-      console.error("Error fetching transactions", err);
+      console.error("Error fetching project audits", err);
       setTransactions([]);
     }
   };
@@ -161,7 +215,7 @@ export default function ProjectsPage() {
 
   const handleAddProject = async () => {
     if (!newProject.title || !newProject.target || !newProject.category) {
-      alert("Please fill required fields");
+      showToast("error", "Please fill required fields (Title, Target, Category)");
       return;
     }
 
@@ -188,14 +242,15 @@ export default function ProjectsPage() {
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || "Failed to add project");
+        throw new Error(errBody.error || "Failed to add project campaign");
       }
 
       setShowAddDialog(false);
       setNewProject({ title: "", description: "", target: "", category: "Education", image: "", startDate: "", endDate: "" });
+      showToast("success", "Fundraising campaign launched successfully!");
       fetchProjects();
     } catch (err) {
-      alert(err.message);
+      showToast("error", err.message);
     }
   };
 
@@ -244,13 +299,14 @@ export default function ProjectsPage() {
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || "Failed to update project");
+        throw new Error(errBody.error || "Failed to save project campaign");
       }
 
       setShowEditDialog(false);
+      showToast("success", "Campaign details saved successfully.");
       fetchProjects();
     } catch (err) {
-      alert(err.message);
+      showToast("error", err.message);
     }
   };
 
@@ -261,17 +317,18 @@ export default function ProjectsPage() {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error("Failed to delete");
+      if (!res.ok) throw new Error("Failed to delete project");
       setShowDeleteDialog(false);
+      showToast("success", "Campaign erased from database logs.");
       fetchProjects();
     } catch (err) {
-      alert(err.message);
+      showToast("error", err.message);
     }
   };
 
   const handleDownloadReport = (project, transactionsList = []) => {
     const doc = new jsPDF();
-    doc.setFont("Inter", "sans-serif");
+    doc.setFont("Helvetica", "normal");
     doc.setFontSize(18);
     doc.text("🎓 Project Donation Report", 14, 20);
     doc.setFontSize(12);
@@ -301,18 +358,93 @@ export default function ProjectsPage() {
   const filteredProjects = projects.filter((p) => {
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch = !q || p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
-    const matchesStatus =
-      filterStatus === "All" ||
-      (filterStatus === "Completed" && p.raised >= p.target) ||
-      (filterStatus === "Active" && p.raised < p.target);
-    return matchesSearch && matchesStatus;
+
+    // Filter by Database Status and progress combination
+    const isCompleted = p.status === "Completed" || p.raised >= p.target;
+    let matchesStatus = true;
+    if (filterStatus === "Completed") {
+      matchesStatus = isCompleted;
+    } else if (filterStatus === "Active") {
+      matchesStatus = !isCompleted && p.status !== "Cancelled";
+    } else if (filterStatus === "Cancelled") {
+      matchesStatus = p.status === "Cancelled";
+    }
+
+    const matchesCategory = categoryFilter === "All" || p.category === categoryFilter;
+
+    return matchesSearch && matchesStatus && matchesCategory;
+  });
+
+  const filteredDonations = allDonations.filter((d) => {
+    const q = ledgerSearchQuery.trim().toLowerCase();
+    const donorName = `${d.donorFirstName || "Anonymous"} ${d.donorLastName || ""}`.toLowerCase();
+    const matchesSearch =
+      !q ||
+      d.projectTitle.toLowerCase().includes(q) ||
+      donorName.includes(q) ||
+      (d.paymentMode && d.paymentMode.toLowerCase().includes(q)) ||
+      (d.paymentStatus && d.paymentStatus.toLowerCase().includes(q)) ||
+      String(d.donationId).includes(q);
+    const matchesCategory = ledgerCategoryFilter === "All" || d.category === ledgerCategoryFilter;
+    return matchesSearch && matchesCategory;
   });
 
   const totalFundsTarget = projects.reduce((acc, curr) => acc + curr.target, 0);
   const totalFundsRaised = projects.reduce((acc, curr) => acc + curr.raised, 0);
 
+  const getStatusBadge = (status, raised, target) => {
+    const isCompleted = status === "Completed" || raised >= target;
+    if (status === "Cancelled") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold font-display bg-rose-50 border border-rose-200 text-rose-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+          Cancelled
+        </span>
+      );
+    }
+    if (isCompleted) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold font-display bg-gray-100 border border-gray-200 text-gray-700">
+          Completed
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold font-display bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        Active
+      </span>
+    );
+  };
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8 p-4">
+    <div className="max-w-7xl mx-auto space-y-8 p-4 relative">
+      {/* ── Toast Notifications ── */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border transition-all duration-300 transform translate-y-0 ${
+            toast.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-rose-50 border-rose-200 text-rose-800"
+          }`}
+        >
+          <div className={toast.type === "success" ? "text-emerald-500" : "text-rose-500"}>
+            {toast.type === "success" ? (
+              <Heart className="h-5 w-5 fill-current" />
+            ) : (
+              <AlertCircle className="h-5 w-5" />
+            )}
+          </div>
+          <div className="text-sm font-semibold">{toast.message}</div>
+          <button
+            onClick={() => setToast(null)}
+            className="p-1 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+          >
+            <X className="h-4 w-4 text-gray-500" />
+          </button>
+        </div>
+      )}
+
       {/* ── Header ── */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-gray-200/60">
         <div>
@@ -410,40 +542,78 @@ export default function ProjectsPage() {
       </section>
 
       {/* ── Tab Content ── */}
-      {activeTab === "projects" ? (
+      {fetchError ? (
+        <div className="flex flex-col items-center justify-center text-center py-16 px-4 bg-rose-50/50 border border-rose-100 rounded-2xl">
+          <div className="p-3 bg-rose-100 rounded-full text-rose-600 mb-3 animate-bounce">
+            <AlertCircle className="h-8 w-8" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 font-display">Connection Error</h3>
+          <p className="text-sm text-gray-600 max-w-sm mt-1">
+            {fetchError}
+          </p>
+          <Button
+            onClick={loadData}
+            className="mt-4 bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-sm cursor-pointer flex gap-2 text-xs"
+          >
+            Retry Connection
+          </Button>
+        </div>
+      ) : activeTab === "projects" ? (
         <>
           {/* Filters */}
-          <section className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-2.5 h-4.5 w-4.5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search projects or categories..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 bg-white rounded-lg shadow-2xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm transition-all duration-200"
-              />
+          <section className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3 top-2.5 h-4.5 w-4.5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search projects or categories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 bg-white rounded-lg shadow-2xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm transition-all duration-200"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <span className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">
+                  Status:
+                </span>
+                <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200/50">
+                  {["All", "Active", "Completed", "Cancelled"].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setFilterStatus(status)}
+                      className={`px-3.5 py-1 text-xs font-semibold font-display rounded-md transition-all duration-200 cursor-pointer ${
+                        filterStatus === status
+                          ? "bg-white text-brand-700 shadow-3xs font-bold"
+                          : "text-gray-600 hover:text-brand-600"
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <span className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">
-                Status:
+            {/* Category Pills Bar */}
+            <div className="flex flex-wrap gap-2 pt-1 pb-2 items-center">
+              <span className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider mr-2">
+                Category:
               </span>
-              <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200/50">
-                {["All", "Active", "Completed"].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
-                    className={`px-3.5 py-1 text-xs font-semibold font-display rounded-md transition-all duration-200 cursor-pointer ${
-                      filterStatus === status
-                        ? "bg-white text-brand-700 shadow-3xs font-bold"
-                        : "text-gray-600 hover:text-brand-600"
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
+              {["All", ...categories].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`px-3.5 py-1 text-xs font-semibold font-display rounded-full transition-all duration-200 cursor-pointer border ${
+                    categoryFilter === cat
+                      ? "bg-brand-600 border-brand-600 text-white shadow-sm font-bold"
+                      : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-brand-600"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
           </section>
 
@@ -463,10 +633,27 @@ export default function ProjectsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProjects.length ? (
+                  {loading ? (
+                    Array.from({ length: 4 }).map((_, idx) => (
+                      <TableRow key={idx} className="animate-pulse">
+                        <TableCell className="w-12"><div className="h-4 bg-gray-200 rounded w-8"></div></TableCell>
+                        <TableCell className="p-4">
+                          <div className="h-4 bg-gray-200 rounded w-48 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-16"></div>
+                        </TableCell>
+                        <TableCell><div className="h-4 bg-gray-200 rounded w-20"></div></TableCell>
+                        <TableCell><div className="h-4 bg-gray-200 rounded w-20"></div></TableCell>
+                        <TableCell className="w-48">
+                          <div className="h-2 bg-gray-200 rounded w-full mb-1"></div>
+                          <div className="h-3 bg-gray-200 rounded w-12"></div>
+                        </TableCell>
+                        <TableCell><div className="h-6 bg-gray-200 rounded-full w-16"></div></TableCell>
+                        <TableCell className="text-right p-4"><div className="h-8 bg-gray-200 rounded w-24 ml-auto"></div></TableCell>
+                      </TableRow>
+                    ))
+                  ) : filteredProjects.length ? (
                     filteredProjects.map((project) => {
                       const progress = project.target ? (project.raised / project.target) * 100 : 0;
-                      const status = progress >= 100 ? "Completed" : "Active";
                       return (
                         <TableRow key={project.id} className="hover:bg-gray-50/30 transition-colors">
                           <TableCell className="font-semibold text-gray-400 font-display text-sm">#{project.id}</TableCell>
@@ -474,9 +661,18 @@ export default function ProjectsPage() {
                             <div className="font-display font-bold text-sm text-gray-900 leading-snug">
                               {project.title}
                             </div>
-                            <span className="text-3xs text-gray-400 font-semibold uppercase tracking-wider">
-                              {project.category}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <span className="text-3xs text-gray-400 font-semibold uppercase tracking-wider bg-gray-100 px-1.5 py-0.5 rounded">
+                                {project.category}
+                              </span>
+                              {project.startDate && (
+                                <span className="text-3xs text-gray-400 font-medium flex items-center gap-1 font-display">
+                                  <Calendar className="h-3 w-3 text-gray-400" />
+                                  {new Date(project.startDate).toLocaleDateString()}
+                                  {project.endDate && ` → ${new Date(project.endDate).toLocaleDateString()}`}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-gray-950 font-bold font-display text-sm">₹{Number(project.target).toLocaleString()}</TableCell>
                           <TableCell className="text-brand-600 font-bold font-display text-sm">₹{Number(project.raised).toLocaleString()}</TableCell>
@@ -489,9 +685,7 @@ export default function ProjectsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={status === "Active" ? "success" : "default"} className="font-display border-none font-semibold">
-                              {status}
-                            </Badge>
+                            {getStatusBadge(project.status, project.raised, project.target)}
                           </TableCell>
                           <TableCell className="text-right p-4">
                             <div className="flex justify-end gap-2 flex-wrap max-w-xs ml-auto">
@@ -537,10 +731,49 @@ export default function ProjectsPage() {
                         </TableRow>
                       );
                     })
+                  ) : projects.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan="7" className="p-0">
+                        <div className="flex flex-col items-center justify-center text-center py-16 px-4 bg-gray-50/50 rounded-2xl">
+                          <div className="p-4 bg-brand-50 rounded-full text-brand-600 mb-4">
+                            <Landmark className="h-12 w-12 text-brand-600" />
+                          </div>
+                          <h3 className="text-lg font-bold text-gray-900 font-display">No campaigns launched yet</h3>
+                          <p className="text-sm text-gray-500 max-w-sm mt-1">
+                            Kickstart the fundraising pipeline by launching a project. Make educational opportunities accessible to everyone.
+                          </p>
+                          <Button
+                            onClick={() => setShowAddDialog(true)}
+                            className="mt-5 bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-sm cursor-pointer gap-2"
+                          >
+                            <Plus className="h-4 w-4" /> Launch Campaign
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     <TableRow>
-                      <TableCell colSpan="7" className="text-center py-10 text-gray-500 font-display">
-                        No projects launched yet. Click Create Campaign to launch one.
+                      <TableCell colSpan="7" className="p-0">
+                        <div className="flex flex-col items-center justify-center text-center py-16 px-4 bg-gray-50/30 rounded-2xl">
+                          <div className="p-3 bg-gray-100 rounded-full text-gray-400 mb-4">
+                            <Search className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <h3 className="text-base font-bold text-gray-900 font-display">No matching campaigns found</h3>
+                          <p className="text-sm text-gray-500 max-w-xs mt-1">
+                            Adjust your filters or query to find what you are looking for.
+                          </p>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setSearchQuery("");
+                              setFilterStatus("All");
+                              setCategoryFilter("All");
+                            }}
+                            className="mt-4 border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold cursor-pointer"
+                          >
+                            Reset Filters
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}
@@ -551,64 +784,121 @@ export default function ProjectsPage() {
         </>
       ) : (
         /* Donations Ledger Tab */
-        <Card className="bg-white border border-gray-200/80 shadow-3xs overflow-hidden">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader className="bg-gray-50/50 border-b border-gray-100">
-                <TableRow>
-                  <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Donation ID</TableHead>
-                  <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Project Destination</TableHead>
-                  <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Amount (₹)</TableHead>
-                  <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Payment Mode</TableHead>
-                  <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Payment Status</TableHead>
-                  <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Donation Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {allDonations.length ? (
-                  allDonations.map((donation) => (
-                    <TableRow key={donation.donationId} className="hover:bg-gray-50/30 transition-colors">
-                      <TableCell className="font-semibold text-gray-400 font-display text-sm">#{donation.donationId}</TableCell>
-                      <TableCell className="p-4">
-                        <div className="font-display font-bold text-sm text-gray-900 leading-snug">
-                          {donation.projectTitle}
-                        </div>
-                        <span className="text-3xs text-gray-400 font-semibold uppercase tracking-wider">
-                          {donation.category}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right text-emerald-600 font-bold font-display text-sm">
-                        ₹{Number(donation.amount).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-gray-600 text-xs font-semibold uppercase">{donation.paymentMode || "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant={donation.paymentStatus === "Success" ? "default" : "secondary"}>
-                          {donation.paymentStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-500 text-xs font-semibold font-display">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                          {new Date(donation.donationDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric"
-                          })}
-                        </span>
+        <div className="space-y-4">
+          {/* Filters for Donation Ledger */}
+          <section className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-2.5 h-4.5 w-4.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search donor name, project, mode..."
+                value={ledgerSearchQuery}
+                onChange={(e) => setLedgerSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 bg-white rounded-lg shadow-2xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm transition-all duration-200"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <span className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">
+                Category:
+              </span>
+              <select
+                value={ledgerCategoryFilter}
+                onChange={(e) => setLedgerCategoryFilter(e.target.value)}
+                className="border border-gray-200 px-3.5 py-1.5 rounded-lg text-xs bg-white shadow-2xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none cursor-pointer text-gray-700 font-medium font-display"
+              >
+                <option value="All">All Categories</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          </section>
+
+          <Card className="bg-white border border-gray-200/80 shadow-3xs overflow-hidden">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-gray-50/50 border-b border-gray-100">
+                  <TableRow>
+                    <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Donation ID</TableHead>
+                    <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Project Destination</TableHead>
+                    <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Donor</TableHead>
+                    <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Amount</TableHead>
+                    <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Payment Mode</TableHead>
+                    <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Payment Status</TableHead>
+                    <TableHead className="font-display font-bold text-gray-500 text-xs uppercase tracking-wider">Donation Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    Array.from({ length: 4 }).map((_, idx) => (
+                      <TableRow key={idx} className="animate-pulse">
+                        <TableCell className="w-12"><div className="h-4 bg-gray-200 rounded w-8"></div></TableCell>
+                        <TableCell className="p-4">
+                          <div className="h-4 bg-gray-200 rounded w-36 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-16"></div>
+                        </TableCell>
+                        <TableCell><div className="h-4 bg-gray-200 rounded w-24"></div></TableCell>
+                        <TableCell><div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div></TableCell>
+                        <TableCell><div className="h-4 bg-gray-200 rounded w-12"></div></TableCell>
+                        <TableCell><div className="h-6 bg-gray-200 rounded-full w-14"></div></TableCell>
+                        <TableCell><div className="h-4 bg-gray-200 rounded w-20"></div></TableCell>
+                      </TableRow>
+                    ))
+                  ) : filteredDonations.length ? (
+                    filteredDonations.map((donation) => (
+                      <TableRow key={donation.donationId} className="hover:bg-gray-50/30 transition-colors">
+                        <TableCell className="font-semibold text-gray-400 font-display text-sm">#{donation.donationId}</TableCell>
+                        <TableCell className="p-4">
+                          <div className="font-display font-bold text-sm text-gray-900 leading-snug">
+                            {donation.projectTitle}
+                          </div>
+                          <span className="text-3xs text-gray-400 font-semibold uppercase tracking-wider">
+                            {donation.category}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-semibold text-gray-700 text-sm font-display">
+                          {donation.donorFirstName || donation.donorLastName ? (
+                            `${donation.donorFirstName || ""} ${donation.donorLastName || ""}`.trim()
+                          ) : (
+                            <span className="text-gray-400 italic font-normal">Anonymous</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right text-emerald-600 font-bold font-display text-sm">
+                          ₹{Number(donation.amount).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-gray-600 text-xs font-semibold uppercase">{donation.paymentMode || "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={donation.paymentStatus === "Success" ? "default" : "secondary"}>
+                            {donation.paymentStatus}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-500 text-xs font-semibold font-display">
+                          <span className="flex items-center gap-1.5">
+                            <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                            {new Date(donation.donationDate).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric"
+                            })}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan="7" className="text-center py-12 text-gray-500 font-display">
+                        {allDonations.length === 0
+                          ? "No donation records synchronized in platform ledgers."
+                          : "No ledger records found matching search queries."}
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan="6" className="text-center py-10 text-gray-500 font-display">
-                      No donations records synchronized in platform ledgers.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* ── Dialog 1: Transactions for a specific project ── */}
@@ -702,9 +992,7 @@ export default function ProjectsPage() {
                     {selectedProject.category}
                   </DialogDescription>
                 </div>
-                <Badge variant={selectedProject.status === "Ongoing" ? "success" : "default"}>
-                  {selectedProject.status}
-                </Badge>
+                {getStatusBadge(selectedProject.status, selectedProject.raised, selectedProject.target)}
               </DialogHeader>
 
               <div className="grid grid-cols-2 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100 text-sm">
@@ -718,18 +1006,40 @@ export default function ProjectsPage() {
                 </div>
               </div>
 
+              {selectedProject.startDate && (
+                <div className="text-xs text-gray-500 font-display flex items-center gap-1.5 bg-gray-50/20 p-2.5 rounded-lg border border-gray-100">
+                  <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                  <span className="font-semibold text-gray-700">Timeline:</span>
+                  <span>{new Date(selectedProject.startDate).toLocaleDateString()}</span>
+                  {selectedProject.endDate && (
+                    <>
+                      <span>to</span>
+                      <span>{new Date(selectedProject.endDate).toLocaleDateString()}</span>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <h4 className="text-2xs font-semibold text-gray-400 uppercase tracking-widest font-display">
                   Project Description
                 </h4>
                 <p className="text-sm text-gray-700 leading-relaxed bg-gray-50/20 p-4 rounded-xl border border-gray-100 whitespace-pre-wrap max-h-40 overflow-y-auto scrollbar-thin">
-                  {selectedProject.description}
+                  {selectedProject.description || "No description provided."}
                 </p>
               </div>
 
               {selectedProject.image && (
                 <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50 max-h-48 flex items-center justify-center">
-                  <img src={selectedProject.image} alt="Project" className="object-cover w-full h-full" />
+                  <img
+                    src={selectedProject.image}
+                    alt="Project"
+                    className="object-contain w-full h-full max-h-48"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.style.display = 'none';
+                    }}
+                  />
                 </div>
               )}
 
@@ -758,7 +1068,7 @@ export default function ProjectsPage() {
           <div className="space-y-4 pt-4 text-left">
             <div className="grid grid-cols-2 gap-3.5">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">Project Title</label>
+                <label className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">Project Title *</label>
                 <input
                   type="text"
                   value={editData.title}
@@ -768,11 +1078,11 @@ export default function ProjectsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">Category</label>
+                <label className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">Category *</label>
                 <select
                   value={editData.category}
                   onChange={(e) => setEditData({ ...editData, category: e.target.value })}
-                  className="w-full border border-gray-200 px-3.5 py-2.5 rounded-lg text-sm bg-white shadow-2xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none cursor-pointer"
+                  className="w-full border border-gray-200 px-3.5 py-2.5 rounded-lg text-sm bg-white shadow-2xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none cursor-pointer text-gray-700"
                 >
                   {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -781,7 +1091,7 @@ export default function ProjectsPage() {
 
             <div className="grid grid-cols-2 gap-3.5">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">Target Amount (₹)</label>
+                <label className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">Target Amount (₹) *</label>
                 <input
                   type="number"
                   value={editData.target}
@@ -795,7 +1105,7 @@ export default function ProjectsPage() {
                 <select
                   value={editData.status}
                   onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-                  className="w-full border border-gray-200 px-3.5 py-2.5 rounded-lg text-sm bg-white shadow-2xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none cursor-pointer"
+                  className="w-full border border-gray-200 px-3.5 py-2.5 rounded-lg text-sm bg-white shadow-2xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none cursor-pointer text-gray-700"
                 >
                   <option value="Ongoing">Ongoing</option>
                   <option value="Completed">Completed</option>
@@ -830,11 +1140,29 @@ export default function ProjectsPage() {
               <label className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">Image URL</label>
               <input
                 type="text"
+                placeholder="Campaign poster link..."
                 value={editData.image}
                 onChange={(e) => setEditData({ ...editData, image: e.target.value })}
                 className="w-full border border-gray-200 px-3.5 py-2 rounded-lg text-sm bg-white shadow-2xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none"
               />
             </div>
+
+            {editData.image && (
+              <div className="space-y-1">
+                <span className="text-3xs font-semibold text-gray-400 font-display uppercase tracking-wider">Poster Preview</span>
+                <div className="rounded-lg overflow-hidden border border-gray-200 max-h-24 flex items-center justify-center bg-gray-50/50 shadow-3xs p-1">
+                  <img
+                    src={editData.image}
+                    alt="Poster Preview"
+                    className="object-contain w-full h-full max-h-20"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400";
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">Campaign Overview</label>
@@ -938,6 +1266,23 @@ export default function ProjectsPage() {
                 />
               </div>
             </div>
+
+            {newProject.image && (
+              <div className="space-y-1">
+                <span className="text-3xs font-semibold text-gray-400 font-display uppercase tracking-wider">Poster Preview</span>
+                <div className="rounded-lg overflow-hidden border border-gray-200 max-h-24 flex items-center justify-center bg-gray-50/50 shadow-3xs p-1">
+                  <img
+                    src={newProject.image}
+                    alt="Poster Preview"
+                    className="object-contain w-full h-full max-h-20"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400";
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-500 font-display uppercase tracking-wider">Campaign Overview</label>

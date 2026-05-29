@@ -173,10 +173,12 @@ exports.getDonations = async (req, res) => {
       SELECT d.Donation_ID AS donationId, d.Donor_ID AS donorId, d.Amount AS amount,
         d.Message AS message, d.Donation_Date AS donationDate, t.transaction_id AS transactionId,
         t.Payment_Mode AS paymentMode, t.Payment_Status AS paymentStatus, t.Payment_Time AS paymentTime,
-        p.Project_ID AS projectId, p.Project_title AS projectTitle, p.Category AS category
+        p.Project_ID AS projectId, p.Project_title AS projectTitle, p.Category AS category,
+        u.User_Fname AS donorFirstName, u.User_Lname AS donorLastName
       FROM donation d
       JOIN project p ON d.Project_ID = p.Project_ID
       JOIN transactions t ON d.transaction_id = t.transaction_id
+      LEFT JOIN user_table u ON d.Donor_ID = u.User_ID
       ORDER BY d.Donation_Date DESC
     `);
     res.json(rows);
@@ -211,7 +213,7 @@ exports.getProjectTransactions = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const [users] = await db.query(`
-      SELECT u.User_ID, u.User_Fname, u.User_Lname, u.Email_ID, u.Gender, u.Phone_no, u.Address,
+      SELECT u.User_ID, u.User_Fname, u.User_Lname, u.Email_ID, u.Gender, u.Phone_no, u.Address, u.Is_Verified,
         ut.User_Type_name AS User_Type
       FROM User_Table u
       JOIN User_Type_Table ut ON u.User_Type_ID = ut.User_Type_ID
@@ -254,7 +256,7 @@ exports.addAdmin = async (req, res) => {
 exports.getUserById = async (req, res) => {
   try {
     const [user] = await db.query(
-      `SELECT u.User_ID, u.User_Fname, u.User_Lname, u.Email_ID, u.Phone_no, u.Gender, u.Address,
+      `SELECT u.User_ID, u.User_Fname, u.User_Lname, u.Email_ID, u.Phone_no, u.Gender, u.Address, u.Is_Verified,
         ut.User_Type_name AS User_Type
       FROM User_Table u
       JOIN User_Type_Table ut ON u.User_Type_ID = ut.User_Type_ID
