@@ -13,7 +13,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,11 @@ export default function AdminSidebar() {
           icon: <LayoutDashboard className="h-5 w-5" />,
           path: "/admin-dashboard",
           end: true,
+        },
+        {
+          name: "Reports & Insights",
+          icon: <TrendingUp className="h-5 w-5" />,
+          path: "/admin-dashboard/analytics",
         },
       ],
     },

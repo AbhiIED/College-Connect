@@ -8,6 +8,7 @@ router.use(verifyAdmin);
 
 // Dashboard
 router.get("/stats", adminController.getDashboardStats);
+router.get("/analytics", adminController.getAnalytics);
 
 // Project management
 router.get("/projects", adminController.getProjects);
