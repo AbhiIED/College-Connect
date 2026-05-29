@@ -65,3 +65,40 @@ exports.deleteJob = async (req, res) => {
     res.status(500).json({ error: "Failed to delete job" });
   }
 };
+
+// Update a job posting
+exports.updateJob = async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const { title, company, location, description, applyLink, applyFrom, applyTo } = req.body;
+
+    if (!title || !company || !location || !description || !applyFrom || !applyTo) {
+      return res.status(400).json({ error: "Please fill all required fields." });
+    }
+
+    if (new Date(applyFrom) > new Date(applyTo)) {
+      return res.status(400).json({ error: "Apply To date must be greater than Apply From date." });
+    }
+
+    const query = `
+      UPDATE Job_Postings
+      SET Job_Title = ?, Company_Name = ?, Location = ?, Description = ?, 
+          Application_Link = ?, Apply_From = ?, Apply_To = ?
+      WHERE Job_ID = ?
+    `;
+
+    const [result] = await pool.query(query, [
+      title, company, location, description,
+      applyLink || null, applyFrom, applyTo, jobId
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Job not found." });
+    }
+
+    res.json({ success: true, message: "Job updated successfully!" });
+  } catch (err) {
+    console.error("❌ Error updating job:", err);
+    res.status(500).json({ error: "Failed to update job" });
+  }
+};

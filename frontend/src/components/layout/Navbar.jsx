@@ -19,6 +19,7 @@ import {
   PenSquare,
   FileText,
   GraduationCap,
+  ShieldCheck,
 } from "lucide-react";
 import logo from "../../assets/logo.png";
 
@@ -84,17 +85,15 @@ export default function Navbar() {
 
   /* ── active-link helper ── */
   const linkClass = ({ isActive }) =>
-    `relative flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-      isActive
-        ? "text-indigo-600 bg-indigo-50"
-        : "text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/60"
+    `relative flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
+      ? "text-brand-600 bg-brand-50"
+      : "text-gray-600 hover:text-brand-600 hover:bg-brand-50/60"
     }`;
 
   const mobileLinkClass = ({ isActive }) =>
-    `flex items-center gap-3 px-4 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${
-      isActive
-        ? "text-indigo-700 bg-indigo-50 border-l-4 border-indigo-600"
-        : "text-gray-700 hover:text-indigo-600 hover:bg-indigo-50/60"
+    `flex items-center gap-3 px-4 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${isActive
+      ? "text-brand-700 bg-brand-50 border-l-4 border-brand-600"
+      : "text-gray-700 hover:text-brand-600 hover:bg-brand-50/60"
     }`;
 
   /* ── sample notifications ── */
@@ -117,11 +116,10 @@ export default function Navbar() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-          scrolled
+        className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled
             ? "bg-white/80 backdrop-blur-xl shadow-lg shadow-indigo-100/30 border-b border-gray-200/60"
             : "bg-white/95 backdrop-blur-md border-b border-gray-100"
-        }`}
+          }`}
       >
         <nav
           aria-label="Global"
@@ -307,19 +305,28 @@ export default function Navbar() {
                       </div>
                     </div>
 
-                    <div className="p-2">
+                    <div className="p-2 space-y-1">
+                      {user.User_Type_ID === 3 && (
+                        <NavLink
+                          to="/admin-dashboard"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 transition-colors"
+                        >
+                          <ShieldCheck className="h-4 w-4 text-brand-600" /> Admin Portal
+                        </NavLink>
+                      )}
                       <NavLink
                         to="/manage-account"
                         onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-brand-50 hover:text-brand-600 transition-colors"
                       >
-                        <Settings className="h-4 w-4" /> Profile Settings
+                        <Settings className="h-4 w-4 text-gray-400" /> Profile Settings
                       </NavLink>
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                       >
-                        <LogOut className="h-4 w-4" /> Sign Out
+                        <LogOut className="h-4 w-4 text-gray-400" /> Sign Out
                       </button>
                     </div>
                   </motion.div>

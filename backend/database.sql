@@ -321,3 +321,23 @@ CREATE INDEX idx_chat_conversation   ON Chat_Message(Sender_ID, Receiver_ID, Sen
 CREATE INDEX idx_chat_unread         ON Chat_Message(Receiver_ID, Is_Read);
 CREATE INDEX idx_otp_email_purpose   ON OTP_Verification(Email, Purpose);
 CREATE INDEX idx_otp_expiry          ON OTP_Verification(Expires_At);
+
+
+/*
+
+USE CollegeConnect;
+
+-- Insert admin user (Email: admin@college.com | Password: Admin@123)
+INSERT INTO User_Table (User_Type_ID, User_Fname, User_Lname, Gender, Phone_no, Email_ID, Password, Is_Verified)
+VALUES (
+    3, 'Super', 'Admin', 'Male', '9999999999',
+    'admin@college.com',
+    '$2b$10$N.pycszXqJaAL/YVIrnIgeWky9ntp2kYlQnrJpND4xKdHPtnT7Imi',
+    1
+);
+
+-- Link to Admin_Table
+INSERT INTO Admin_Table (Admin_ID, User_ID, Role)
+VALUES (1, LAST_INSERT_ID(), 'Administrator');
+
+*/
