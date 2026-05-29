@@ -322,7 +322,7 @@ exports.toggleUserVerification = async (req, res) => {
     const { isVerified } = req.body;
 
     const [result] = await db.query(
-      `UPDATE User_Table SET Is_Verified = ? WHERE User_ID = ?`,
+      `UPDATE User_Table SET Is_Verified = ?, Verification_Query = NULL WHERE User_ID = ?`,
       [isVerified ? 1 : 0, id]
     );
 

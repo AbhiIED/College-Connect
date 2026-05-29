@@ -129,12 +129,15 @@ export default function UsersPage() {
       if (res.ok) {
         // Optimistic UI update
         setUsers(users.map((u) => u.User_ID === user.User_ID ? { ...u, Is_Verified: nextStatus ? 1 : 0 } : u));
+        return true;
       } else {
         const errData = await res.json();
         alert(errData.error || "Failed to toggle verification");
+        return false;
       }
     } catch (err) {
       console.error("Error toggling verification:", err);
+      return false;
     }
   };
 
@@ -332,7 +335,17 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell className="text-gray-600 text-sm font-medium">{u.Phone_no || "—"}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end items-center gap-2">
+                        {u.User_Type !== "Admin" && !u.Is_Verified && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleToggleVerification(u)}
+                            className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold cursor-pointer gap-1 transition-all duration-200 shadow-sm"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            Verify
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -538,7 +551,20 @@ export default function UsersPage() {
             <p className="text-center py-6 text-sm text-gray-500 font-medium">Loading credentials...</p>
           )}
 
-          <DialogFooter className="pt-4 border-t border-gray-100 flex justify-end">
+          <DialogFooter className="pt-4 border-t border-gray-100 flex justify-end gap-2">
+            {selectedUser && selectedUser.User_Type !== "Admin" && !selectedUser.Is_Verified && (
+              <Button
+                onClick={async () => {
+                  const success = await handleToggleVerification(selectedUser);
+                  if (success) {
+                    setSelectedUser((prev) => ({ ...prev, Is_Verified: 1 }));
+                  }
+                }}
+                className="bg-teal-600 hover:bg-teal-700 text-white font-semibold cursor-pointer gap-1.5 shadow-sm"
+              >
+                <CheckCircle className="h-4 w-4" /> Verify User
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setShowViewDialog(false)} className="border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold cursor-pointer">
               Close Audit
             </Button>
