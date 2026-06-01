@@ -341,7 +341,7 @@ exports.toggleUserVerification = async (req, res) => {
 exports.getAllPosts = async (req, res) => {
   try {
     const [posts] = await db.query(`
-      SELECT p.Post_ID, p.Content, p.Image_URL, p.Created_At, p.Likes_Count, p.Comment_Count,
+      SELECT p.Post_ID, p.Content, p.Image_URL, p.Created_At, p.Likes_Count, p.Comment_Count, p.Is_Flagged,
              u.User_Fname, u.User_Lname, u.Email_ID, ut.User_Type_name AS User_Type
       FROM post p
       LEFT JOIN user_table u ON p.User_ID = u.User_ID
@@ -386,10 +386,13 @@ exports.getEventRegistrations = async (req, res) => {
   try {
     const { id } = req.params;
     const [registrations] = await db.query(
-      `SELECT Registration_ID, Full_Name, Email, Phone, Graduation_Year, Course, Registered_At
-       FROM event_registration
-       WHERE Event_ID = ?
-       ORDER BY Registered_At DESC`,
+      `SELECT r.Registration_ID, r.Full_Name, r.Email, r.Phone, r.Graduation_Year, r.Course, r.Registered_At,
+              COALESCE(s.Scholar_No, a.Enrollment_No) AS Scholar_ID
+       FROM event_registration r
+       LEFT JOIN student_table s ON r.User_ID = s.User_ID
+       LEFT JOIN alumni_table a ON r.User_ID = a.User_ID
+       WHERE r.Event_ID = ?
+       ORDER BY r.Registered_At DESC`,
       [id]
     );
     res.json(registrations);
@@ -604,3 +607,150 @@ exports.getAnalytics = async (req, res) => {
     res.status(500).json({ error: "Failed to load platform analytics & reports" });
   }
 };
+
+// ==================== NOTIFICATION CENTER ====================
+
+// GET /admin/notifications — returns all live admin alerts computed from DB
+exports.getAdminNotifications = async (req, res) => {
+  try {
+    const notifications = [];
+
+    // ── 1. Pending user verifications ──────────────────────────────────────────
+    const [pendingUsers] = await db.query(`
+      SELECT u.User_ID, u.User_Fname, u.User_Lname, ut.User_Type_name AS User_Type
+      FROM User_Table u
+      JOIN User_Type_Table ut ON u.User_Type_ID = ut.User_Type_ID
+      WHERE u.Is_Verified = 0 AND ut.User_Type_name != 'Admin'
+      ORDER BY u.User_ID DESC
+      LIMIT 20
+    `);
+
+    pendingUsers.forEach((user) => {
+      notifications.push({
+        id: `verification_${user.User_ID}`,
+        type: "verification",
+        severity: "warning",
+        title: "New User Pending Verification",
+        message: `${user.User_Fname} ${user.User_Lname} (${user.User_Type}) registered and awaits admin approval.`,
+        timestamp: new Date().toISOString(),
+        link: "/admin-dashboard/users",
+      });
+    });
+
+    // ── 2. Recent donations (last 48 hours) ────────────────────────────────────
+    const [recentDonations] = await db.query(`
+      SELECT d.Donation_ID, d.Amount, d.Donation_Date,
+        u.User_Fname, u.User_Lname,
+        p.Project_title
+      FROM Donation d
+      LEFT JOIN User_Table u ON d.Donor_ID = u.User_ID
+      LEFT JOIN project p ON d.Project_ID = p.Project_ID
+      WHERE d.Donation_Date >= NOW() - INTERVAL 48 HOUR
+      ORDER BY d.Donation_Date DESC
+      LIMIT 15
+    `);
+
+    recentDonations.forEach((donation) => {
+      const donor = donation.User_Fname
+        ? `${donation.User_Fname} ${donation.User_Lname}`
+        : "Anonymous";
+      notifications.push({
+        id: `donation_${donation.Donation_ID}`,
+        type: "donation",
+        severity: "success",
+        title: "New Donation Received",
+        message: `${donor} donated ₹${Number(donation.Amount).toLocaleString()} to "${donation.Project_title || "a campaign"}".`,
+        timestamp: donation.Donation_Date,
+        link: "/admin-dashboard/projects",
+      });
+    });
+
+    // ── 3. Flagged / reported posts ────────────────────────────────────────────
+    const [flaggedPosts] = await db.query(`
+      SELECT p.Post_ID, p.Content, p.Created_At,
+        u.User_Fname, u.User_Lname
+      FROM Post p
+      LEFT JOIN User_Table u ON p.User_ID = u.User_ID
+      WHERE p.Is_Flagged = 1
+      ORDER BY p.Created_At DESC
+      LIMIT 15
+    `);
+
+    flaggedPosts.forEach((post) => {
+      const author = post.User_Fname
+        ? `${post.User_Fname} ${post.User_Lname}`
+        : "Unknown user";
+      notifications.push({
+        id: `report_${post.Post_ID}`,
+        type: "report",
+        severity: "danger",
+        title: "Flagged Post Needs Review",
+        message: `Post by ${author}: "${(post.Content || "").substring(0, 60)}${post.Content?.length > 60 ? "…" : ""}"`,
+        timestamp: post.Created_At,
+        link: "/admin-dashboard/posts",
+      });
+    });
+
+    // ── 4. Events with high registrations (threshold: 10+) ────────────────────
+    const EVENT_THRESHOLD = 10;
+    const [hotEvents] = await db.query(`
+      SELECT e.Event_ID, e.Event_Name, e.Event_Date, COUNT(r.Registration_ID) AS reg_count
+      FROM Event_Table e
+      JOIN Event_Registration r ON e.Event_ID = r.Event_ID
+      WHERE e.Event_Date >= CURDATE()
+      GROUP BY e.Event_ID, e.Event_Name, e.Event_Date
+      HAVING reg_count >= ?
+      ORDER BY reg_count DESC
+      LIMIT 10
+    `, [EVENT_THRESHOLD]);
+
+    hotEvents.forEach((event) => {
+      notifications.push({
+        id: `event_${event.Event_ID}`,
+        type: "event",
+        severity: "info",
+        title: "High Event Registration",
+        message: `"${event.Event_Name}" has ${event.reg_count} registrations — consider capacity planning.`,
+        timestamp: event.Event_Date,
+        link: "/admin-dashboard/events",
+      });
+    });
+
+    // Sort: danger > warning > info > success, then by timestamp desc
+    const severityOrder = { danger: 0, warning: 1, info: 2, success: 3 };
+    notifications.sort((a, b) => {
+      const sA = severityOrder[a.severity] ?? 9;
+      const sB = severityOrder[b.severity] ?? 9;
+      if (sA !== sB) return sA - sB;
+      return new Date(b.timestamp) - new Date(a.timestamp);
+    });
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("❌ Error fetching admin notifications:", error);
+    res.status(500).json({ error: "Failed to load admin notifications" });
+  }
+};
+
+// PATCH /admin/posts/:id/flag — toggle Is_Flagged on a post
+exports.flagPost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isFlagged } = req.body;
+
+    const [result] = await db.query(
+      "UPDATE Post SET Is_Flagged = ? WHERE Post_ID = ?",
+      [isFlagged ? 1 : 0, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    res.json({ success: true, message: `Post ${isFlagged ? "flagged" : "unflagged"} successfully` });
+  } catch (err) {
+    console.error("❌ Error flagging post:", err);
+    res.status(500).json({ error: "Failed to flag post" });
+  }
+};
+
