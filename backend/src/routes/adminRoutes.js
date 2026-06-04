@@ -41,4 +41,10 @@ router.get("/connections", adminController.getAllConnections);
 // OTP Auth Logs
 router.get("/otp-logs", adminController.getOtpLogs);
 
+// Notification Center
+router.get("/notifications", adminController.getAdminNotifications);
+
+// Flag / unflag a post (for moderation alerts)
+router.patch("/posts/:id/flag", adminController.flagPost);
+
 module.exports = router;

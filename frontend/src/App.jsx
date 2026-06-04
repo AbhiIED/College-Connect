@@ -29,6 +29,7 @@ import NewsPage from "./pages/admin/NewsPage";
 import ConnectionsPage from "./pages/admin/ConnectionsPage";
 import SystemSettingsPage from "./pages/admin/SystemSettingsPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
+import NotificationsPage from "./pages/admin/NotificationsPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 function App() {
@@ -84,6 +85,7 @@ function App() {
           <Route path="connections" element={<ConnectionsPage />} />
           <Route path="settings" element={<SystemSettingsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
         </Route>
       </Routes>
     </Router>

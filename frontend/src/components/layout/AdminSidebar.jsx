@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
-  TrendingUp
+  TrendingUp,
+  Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ export default function AdminSidebar() {
   });
 
   const [adminUser, setAdminUser] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     try {
@@ -37,6 +39,36 @@ export default function AdminSidebar() {
     } catch (e) {
       console.error("Failed to parse admin user from localStorage", e);
     }
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+    const READ_KEY = "admin_read_notifications";
+
+    const fetchCount = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/admin/notifications`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          let readIds = new Set();
+          try {
+            readIds = new Set(JSON.parse(localStorage.getItem(READ_KEY) || "[]"));
+          } catch {}
+          const unread = data.filter((n) => !readIds.has(n.id)).length;
+          setUnreadCount(unread);
+        }
+      } catch (err) {
+        console.error("Sidebar notification count fetch error:", err);
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const toggleSidebar = () => {
@@ -62,6 +94,12 @@ export default function AdminSidebar() {
           icon: <LayoutDashboard className="h-5 w-5" />,
           path: "/admin-dashboard",
           end: true,
+        },
+        {
+          name: "Notifications",
+          icon: <Bell className="h-5 w-5" />,
+          path: "/admin-dashboard/notifications",
+          badge: unreadCount,
         },
         {
           name: "Reports & Insights",
@@ -212,10 +250,18 @@ export default function AdminSidebar() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-brand-600"
                       )}
                     >
-                      <div className={cn("transition-colors", active ? "text-brand-600" : "text-gray-400 group-hover:text-brand-500")}>
+                      <div className={cn("transition-colors relative", active ? "text-brand-600" : "text-gray-400 group-hover:text-brand-500")}>
                         {item.icon}
+                        {isCollapsed && item.badge > 0 && (
+                          <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 border border-white" />
+                        )}
                       </div>
                       {!isCollapsed && <span className="ml-3 truncate">{item.name}</span>}
+                      {!isCollapsed && item.badge > 0 && (
+                        <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] flex items-center justify-center shadow-sm">
+                          {item.badge}
+                        </span>
+                      )}
 
                       {/* Tooltip for collapsed state */}
                       {isCollapsed && (

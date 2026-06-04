@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import NotificationBell from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -150,16 +151,19 @@ export default function AdminDashboard() {
             </span>
           </div>
           
-          <button
-            onClick={() => {
-              localStorage.removeItem("token");
-              localStorage.removeItem("user");
-              navigate("/signin");
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:text-red-600 hover:border-red-200 hover:bg-red-50/30 transition-all duration-200 cursor-pointer shadow-3xs font-sans"
-          >
-            <LogOut className="h-3.5 w-3.5" /> Sign Out
-          </button>
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <button
+              onClick={() => {
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                navigate("/signin");
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:text-red-600 hover:border-red-200 hover:bg-red-50/30 transition-all duration-200 cursor-pointer shadow-3xs font-sans"
+            >
+              <LogOut className="h-3.5 w-3.5" /> Sign Out
+            </button>
+          </div>
         </div>
 
         {isDashboardHome ? (

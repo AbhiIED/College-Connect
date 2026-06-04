@@ -35,6 +35,7 @@ export default function EventsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("All");
+  const [registrantSearchQuery, setRegistrantSearchQuery] = useState("");
 
   const [addStep, setAddStep] = useState(1);
   const [editStep, setEditStep] = useState(1);
@@ -217,33 +218,130 @@ export default function EventsPage() {
     }
   };
 
+  const handleExportCSV = (event, registrationsList) => {
+    if (!registrationsList || registrationsList.length === 0) {
+      alert("No registrations available to export.");
+      return;
+    }
+    
+    // CSV Header including Scholar ID
+    const headers = ["Registration ID", "Scholar/Enrollment ID", "Full Name", "Email", "Phone", "Course", "Graduation Batch", "Registered At"];
+    
+    // CSV Rows
+    const rows = registrationsList.map((r) => [
+      r.Registration_ID,
+      `"${(r.Scholar_ID || "—").replace(/"/g, '""')}"`,
+      `"${(r.Full_Name || "").replace(/"/g, '""')}"`,
+      `"${(r.Email || "").replace(/"/g, '""')}"`,
+      `"${(r.Phone || "").replace(/"/g, '""')}"`,
+      `"${(r.Course || "").replace(/"/g, '""')}"`,
+      r.Graduation_Year || "—",
+      r.Registered_At ? new Date(r.Registered_At).toLocaleString("en-IN") : ""
+    ]);
+    
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    
+    // Create download trigger
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${event.name.replace(/\s+/g, "_")}_Registrations.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleDownloadReport = (event, registrationsList = []) => {
     const doc = new jsPDF();
-    doc.setFont("Inter", "sans-serif");
-    doc.setFontSize(18);
-    doc.text("🎓 Event Summary & Registrations", 14, 20);
-    doc.setFontSize(12);
-    doc.text(`Event Name: ${event.name}`, 14, 35);
-    doc.text(`Date Scheduled: ${event.date}`, 14, 42);
-    doc.text(`Type: ${event.type}`, 14, 49);
-    doc.text(`Location/Venue: ${event.location}`, 14, 56);
-    if (event.link) doc.text(`Broadcast Link: ${event.link}`, 14, 63);
     
+    // Design elegant premium header layout
+    doc.setFillColor(2, 132, 199); // Sky blue brand color (#0284c7)
+    doc.rect(0, 0, 210, 40, "F");
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("COLLEGE-CONNECT PORTAL", 14, 25);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`ADMIN AUDIT REPORT | GENERATED ON ${new Date().toLocaleDateString("en-IN")}`, 14, 33);
+    
+    // Event Metadata Summary Cards section
+    doc.setTextColor(50, 50, 50);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Event Overview & Metadata", 14, 52);
+    
+    doc.setDrawColor(220, 220, 220);
+    doc.rect(14, 58, 182, 45); // border box for overview stats
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Event Name:", 20, 68);
+    doc.text("Format:", 20, 75);
+    doc.text("Date Scheduled:", 20, 82);
+    doc.text("Location / Link:", 20, 89);
+    doc.text("Total Attendees:", 20, 96);
+    
+    doc.setFont("helvetica", "normal");
+    doc.text(event.name || "—", 55, 68);
+    doc.text(event.type || "—", 55, 75);
+    doc.text(event.date || "—", 55, 82);
+    doc.text(event.location || event.link || "—", 55, 89);
+    doc.text(`${registrationsList.length} registered members`, 55, 96);
+    
+    // Add Registrant detail table if records exist
     if (registrationsList.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text(`Registrants List Ledger (${registrationsList.length})`, 14, 115);
+      
       autoTable(doc, {
-        startY: 75,
-        head: [["Name", "Email", "Phone", "Course", "Grad Year"]],
+        startY: 120,
+        head: [["Scholar/Enroll. ID", "Registrant Name", "Email Address", "Phone", "Course", "Batch Year"]],
         body: registrationsList.map((r) => [
-          r.Full_Name || "",
-          r.Email || "",
+          r.Scholar_ID || "—",
+          r.Full_Name || "—",
+          r.Email || "—",
           r.Phone || "—",
           r.Course || "—",
           r.Graduation_Year || "—"
         ]),
+        headStyles: {
+          fillColor: [2, 132, 199],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 9
+        },
+        bodyStyles: {
+          fontSize: 8.5
+        },
+        alternateRowStyles: {
+          fillColor: [245, 247, 250]
+        },
+        margin: { left: 14, right: 14 }
       });
+    } else {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(11);
+      doc.text("No active registrants signed up for this summit yet.", 14, 115);
     }
-
-    doc.save(`${event.name.replace(/\s+/g, "_")}_Report.pdf`);
+    
+    // Add page number footers
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${i} of ${pageCount}`, 196, 287, { align: "right" });
+      doc.text("Confidential — Internal System Audit Report", 14, 287);
+    }
+    
+    doc.save(`${event.name.replace(/\s+/g, "_")}_Audit_Report.pdf`);
   };
 
   const filteredEvents = events.filter((event) => {
@@ -664,95 +762,223 @@ export default function EventsPage() {
 
       {/* ── Modal 3: View event details with Registrations list ── */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent className="max-w-xl bg-white p-6 rounded-2xl shadow-xl border border-gray-100 text-left flex flex-col max-h-[85vh]">
+        <DialogContent className="max-w-5xl w-[90vw] bg-white p-6 rounded-2xl shadow-xl border border-gray-100 text-left flex flex-col max-h-[85vh] overflow-hidden">
           {selectedEvent && (
-            <div className="space-y-4 font-sans flex-1 flex flex-col min-h-0">
-              <DialogHeader className="pb-3 border-b border-gray-100 flex flex-row items-center justify-between flex-shrink-0">
-                <div>
-                  <DialogTitle className="text-lg font-bold font-display text-gray-900 leading-snug">
+            <div className="flex flex-col md:flex-row gap-6 min-h-0 flex-1">
+              {/* Left Column: Event Metadata Overview (1/3 width) */}
+              <div className="md:w-1/3 flex flex-col space-y-4 pr-0 md:pr-4 md:border-r border-gray-100 flex-shrink-0">
+                <div className="space-y-1">
+                  <Badge variant={selectedEvent.type === "Online" ? "default" : "success"} className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 w-fit border-none">
+                    {selectedEvent.type}
+                  </Badge>
+                  <h3 className="text-xl font-bold font-display text-gray-900 leading-snug">
                     {selectedEvent.name}
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-gray-400 mt-0.5">
-                    Summits & Workshops details.
-                  </DialogDescription>
-                </div>
-                <Badge variant={selectedEvent.type === "Online" ? "default" : "success"}>
-                  {selectedEvent.type}
-                </Badge>
-              </DialogHeader>
-
-              <div className="flex-1 overflow-y-auto pr-1 space-y-4 scrollbar-thin">
-                <div className="grid grid-cols-2 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-100 text-sm">
-                  <div className="flex items-center gap-1.5 text-gray-600">
-                    <Calendar className="h-4.5 w-4.5 text-gray-400 shrink-0" />
-                    <span className="font-semibold text-xs text-gray-900">{selectedEvent.date}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-gray-600 truncate">
-                    <MapPin className="h-4.5 w-4.5 text-gray-400 shrink-0" />
-                    <span className="font-semibold text-xs text-gray-900 truncate">{selectedEvent.location}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <h4 className="text-2xs font-bold text-gray-400 uppercase tracking-widest font-display">
-                    Event Overview
-                  </h4>
-                  <p className="text-xs text-gray-700 leading-relaxed bg-gray-50/20 p-4 rounded-xl border border-gray-100 whitespace-pre-wrap">
-                    {selectedEvent.description}
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    Event Control Summary & Stats
                   </p>
                 </div>
 
-                {/* Live Sign-ups Table */}
-                <div className="space-y-3 pt-3 border-t border-gray-100">
-                  <h4 className="text-2xs font-bold text-gray-400 uppercase tracking-widest font-display">
-                    Audited Member Registrations ({registrations.length})
-                  </h4>
-                  <div className="border border-gray-200/60 rounded-xl overflow-hidden shadow-3xs bg-white">
-                    <Table className="text-xs">
-                      <TableHeader className="bg-gray-50/50 border-b border-gray-100">
-                        <TableRow>
-                          <TableHead className="font-display font-semibold text-gray-500 uppercase py-2">Registrant</TableHead>
-                          <TableHead className="font-display font-semibold text-gray-500 uppercase py-2">Email</TableHead>
-                          <TableHead className="font-display font-semibold text-gray-500 uppercase py-2">Course</TableHead>
-                          <TableHead className="font-display font-semibold text-gray-500 uppercase py-2 text-right">Batch</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {registrations.length ? (
-                          registrations.map((r) => (
-                            <TableRow key={r.Registration_ID} className="hover:bg-gray-50/30 transition-colors">
-                              <TableCell className="font-semibold text-gray-900 leading-none py-2">
-                                {r.Full_Name}
-                              </TableCell>
-                              <TableCell className="text-gray-500 text-[10px] py-2">{r.Email}</TableCell>
-                              <TableCell className="text-gray-600 font-medium py-2">{r.Course || "—"}</TableCell>
-                              <TableCell className="text-right font-bold text-gray-700 py-2">{r.Graduation_Year || "—"}</TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan="4" className="text-center text-gray-400 py-4 font-display text-[10px] italic">
-                              No sign-up ledger entries loaded.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
+                {/* Event banner poster */}
+                {selectedEvent.image && (
+                  <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50 max-h-32 flex items-center justify-center shrink-0">
+                    <img
+                      src={selectedEvent.image}
+                      alt="Banner"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
+                )}
+
+                <div className="space-y-3 text-xs bg-gray-50/70 p-4 rounded-xl border border-gray-100">
+                  <div className="flex items-center gap-2 text-gray-700">
+                    <Calendar className="h-4 w-4 text-brand-500 shrink-0" />
+                    <div>
+                      <p className="font-bold text-gray-500 uppercase tracking-widest text-[9px]">Date Scheduled</p>
+                      <p className="font-semibold text-gray-900 mt-0.5">{selectedEvent.date}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-gray-700">
+                    <MapPin className="h-4 w-4 text-brand-500 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-500 uppercase tracking-widest text-[9px]">Venue/Location</p>
+                      <p className="font-semibold text-gray-900 mt-0.5 truncate" title={selectedEvent.location}>
+                        {selectedEvent.location}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedEvent.type === "Online" && selectedEvent.link && (
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Video className="h-4 w-4 text-brand-500 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-bold text-gray-500 uppercase tracking-widest text-[9px]">Broadcast Link</p>
+                        <a
+                          href={selectedEvent.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-brand-600 hover:text-brand-700 hover:underline mt-0.5 block truncate"
+                        >
+                          {selectedEvent.link}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dynamic student vs alumni attendee stats */}
+                <div className="space-y-2 bg-brand-50/20 p-4 rounded-xl border border-brand-100/50 text-xs">
+                  <p className="font-bold text-brand-800 uppercase tracking-widest text-[9px]">Dynamic Sign-ups Metrics</p>
+                  
+                  <div className="grid grid-cols-3 gap-2 mt-1.5 text-center">
+                    <div className="p-2 bg-white rounded-lg border border-brand-100/40 shadow-3xs">
+                      <p className="text-sm font-black text-brand-700">{registrations.length}</p>
+                      <p className="text-[9px] font-semibold text-gray-400 mt-0.5">Total</p>
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-brand-100/40 shadow-3xs">
+                      <p className="text-sm font-black text-emerald-600">
+                        {(() => {
+                          const pastYear = new Date().getFullYear();
+                          return registrations.filter(r => r.Graduation_Year && Number(r.Graduation_Year) < pastYear).length;
+                        })()}
+                      </p>
+                      <p className="text-[9px] font-semibold text-gray-400 mt-0.5">Alumni</p>
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-brand-100/40 shadow-3xs">
+                      <p className="text-sm font-black text-blue-600">
+                        {(() => {
+                          const pastYear = new Date().getFullYear();
+                          const alumni = registrations.filter(r => r.Graduation_Year && Number(r.Graduation_Year) < pastYear).length;
+                          return registrations.length - alumni;
+                        })()}
+                      </p>
+                      <p className="text-[9px] font-semibold text-gray-400 mt-0.5">Students</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto max-h-36 scrollbar-thin text-xs pr-1">
+                  <p className="font-bold text-gray-400 uppercase tracking-widest text-[9px] mb-1">Description Overview</p>
+                  <p className="text-gray-600 leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                    {selectedEvent.description || "No event description provided."}
+                  </p>
                 </div>
               </div>
 
-              <DialogFooter className="pt-4 border-t border-gray-100 flex justify-end gap-2.5 flex-shrink-0">
-                <Button
-                  onClick={() => handleDownloadReport(selectedEvent, registrations)}
-                  className="bg-brand-50 text-brand-700 border border-brand-100/50 hover:bg-brand-100 flex gap-2 font-semibold cursor-pointer text-xs"
-                >
-                  <FileText className="h-4 w-4" /> Download Report
-                </Button>
-                <Button variant="outline" onClick={() => setShowViewDialog(false)} className="border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold cursor-pointer text-xs">
-                  Close details
-                </Button>
-              </DialogFooter>
+              {/* Right Column: Registrant Search & Grid Table (2/3 width) */}
+              <div className="md:w-2/3 flex flex-col min-h-0 flex-1">
+                {/* Search Bar & Stats Header */}
+                <div className="flex items-center justify-between gap-4 pb-3 border-b border-gray-100 flex-shrink-0">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest font-display flex items-center gap-1.5">
+                    Member Registry List 
+                    <span className="bg-brand-100 text-brand-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0">
+                      {registrations.length}
+                    </span>
+                  </h4>
+                  
+                  <div className="relative w-52 shrink-0">
+                    <Search className="absolute left-2.5 top-1.5 h-3.5 w-3.5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search sign-ups..."
+                      value={registrantSearchQuery}
+                      onChange={(e) => setRegistrantSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1 border border-gray-200 bg-white rounded-lg shadow-3xs focus:ring-1 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-[11px] font-semibold transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Table View Wrapper */}
+                <div className="flex-1 overflow-y-auto border border-gray-200/50 rounded-xl shadow-3xs mt-3 bg-white scrollbar-thin min-h-0">
+                  {(() => {
+                    const filtered = registrations.filter((r) => {
+                      const query = registrantSearchQuery.toLowerCase();
+                      return (
+                        r.Full_Name?.toLowerCase().includes(query) ||
+                        r.Email?.toLowerCase().includes(query) ||
+                        r.Phone?.toLowerCase().includes(query) ||
+                        r.Course?.toLowerCase().includes(query) ||
+                        (r.Graduation_Year && String(r.Graduation_Year).includes(query)) ||
+                        (r.Scholar_ID && r.Scholar_ID.toLowerCase().includes(query))
+                      );
+                    });
+
+                    return (
+                      <Table className="text-xs">
+                        <TableHeader className="bg-gray-50/50 border-b border-gray-100 sticky top-0 z-10">
+                          <TableRow>
+                            <TableHead className="font-display font-semibold text-gray-500 uppercase tracking-wider py-2">ID</TableHead>
+                            <TableHead className="font-display font-semibold text-gray-500 uppercase tracking-wider py-2">Registrant</TableHead>
+                            <TableHead className="font-display font-semibold text-gray-500 uppercase tracking-wider py-2">Contact Details</TableHead>
+                            <TableHead className="font-display font-semibold text-gray-500 uppercase tracking-wider py-2">Degree/Course</TableHead>
+                            <TableHead className="font-display font-semibold text-gray-500 uppercase tracking-wider py-2 text-center">Batch</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filtered.length ? (
+                            filtered.map((r) => (
+                              <TableRow key={r.Registration_ID} className="hover:bg-gray-50/30 transition-colors">
+                                <TableCell className="font-mono text-[10px] text-gray-400 font-bold shrink-0 py-2">
+                                  {r.Scholar_ID || "—"}
+                                </TableCell>
+                                <TableCell className="py-2">
+                                  <div className="font-semibold text-gray-900 leading-snug">
+                                    {r.Full_Name}
+                                  </div>
+                                  <div className="text-[10px] text-gray-400 mt-0.5 font-medium leading-none">
+                                    Signed up: {r.Registered_At ? new Date(r.Registered_At).toLocaleDateString("en-IN", { dateStyle: "short" }) : "—"}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-2 space-y-0.5">
+                                  <div className="text-gray-600 font-medium font-mono text-[10px]">{r.Email}</div>
+                                  <div className="text-gray-400 font-semibold font-mono text-[10px]">{r.Phone || "—"}</div>
+                                </TableCell>
+                                <TableCell className="text-gray-600 font-semibold py-2">
+                                  {r.Course || "—"}
+                                </TableCell>
+                                <TableCell className="text-center font-bold text-gray-700 py-2">
+                                  {r.Graduation_Year || "—"}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan="5" className="text-center text-gray-400 py-8 font-display text-[11px] italic">
+                                {registrations.length === 0 
+                                  ? "No registry sign-up entries compiled yet."
+                                  : "No matches found for search filters."}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    );
+                  })()}
+                </div>
+
+                {/* Footer Controls */}
+                <div className="pt-4 border-t border-gray-100 flex flex-wrap justify-between gap-3 items-center mt-3 flex-shrink-0">
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleExportCSV(selectedEvent, registrations)}
+                      className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-100/50 flex gap-1.5 font-bold cursor-pointer text-xs h-9 px-3.5 rounded-xl shadow-3xs"
+                    >
+                      Export to CSV
+                    </Button>
+                    <Button
+                      onClick={() => handleDownloadReport(selectedEvent, registrations)}
+                      className="bg-brand-50 text-brand-700 hover:bg-brand-100 hover:text-brand-800 border border-brand-100/50 flex gap-1.5 font-bold cursor-pointer text-xs h-9 px-3.5 rounded-xl shadow-3xs"
+                    >
+                      <FileText className="h-4 w-4" /> Download PDF Report
+                    </Button>
+                  </div>
+                  
+                  <Button variant="outline" onClick={() => setShowViewDialog(false)} className="border-gray-200 text-gray-700 hover:bg-gray-50 font-bold cursor-pointer text-xs h-9 px-4 rounded-xl">
+                    Close Command Panel
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>

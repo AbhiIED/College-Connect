@@ -13,7 +13,8 @@ import {
   MessageSquare,
   User,
   ShieldAlert,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Flag
 } from "lucide-react";
 import jsPDF from "jspdf";
 
@@ -48,6 +49,7 @@ export default function PostsPage() {
             likes: p.Likes_Count,
             comments: p.Comment_Count,
             createdAt: p.Created_At,
+            isFlagged: p.Is_Flagged === 1 || p.Is_Flagged === true,
           }))
         );
       }
@@ -55,6 +57,27 @@ export default function PostsPage() {
       console.error("Error fetching posts:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleFlag = async (post) => {
+    try {
+      const nextFlagged = !post.isFlagged;
+      const res = await fetch(`${API_BASE_URL}/admin/posts/${post.id}/flag`, {
+        method: "PATCH",
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ isFlagged: nextFlagged })
+      });
+      if (res.ok) {
+        setPosts(posts.map((p) => p.id === post.id ? { ...p, isFlagged: nextFlagged } : p));
+      } else {
+        alert("Failed to update post flag state");
+      }
+    } catch (err) {
+      console.error("Flag post error:", err);
     }
   };
 
@@ -205,9 +228,17 @@ export default function PostsPage() {
                             <h4 className="font-display font-bold text-sm text-gray-900 truncate leading-snug">
                               {post.author}
                             </h4>
-                            <Badge variant={post.authorType === "Student" ? "success" : "default"} className="mt-0.5 border-none text-[10px] py-0 px-1 font-semibold font-display">
-                              {post.authorType}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                              <Badge variant={post.authorType === "Student" ? "success" : "default"} className="border-none text-[10px] py-0 px-1.5 font-semibold font-display shrink-0">
+                                {post.authorType}
+                              </Badge>
+                              {post.isFlagged && (
+                                <Badge className="bg-red-50 text-red-600 border border-red-100 hover:bg-red-50 text-[9px] py-0 px-1.5 font-bold font-display flex items-center gap-0.5 shrink-0 uppercase tracking-wider">
+                                  <Flag className="h-2.5 w-2.5 fill-red-500 text-red-500" />
+                                  Flagged
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
@@ -235,14 +266,28 @@ export default function PostsPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2 items-center">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleOpenViewDialog(post)}
-                            className="border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold cursor-pointer"
+                            className="border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold cursor-pointer h-8"
                           >
                             View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleToggleFlag(post)}
+                            className={`border-gray-200 text-[11px] font-semibold cursor-pointer h-8 flex items-center gap-1.5 transition-all duration-200 ${
+                              post.isFlagged
+                                ? "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-red-200"
+                                : "text-gray-500 hover:text-red-600 hover:bg-red-50/50"
+                            }`}
+                            title={post.isFlagged ? "Unflag Post" : "Flag Post"}
+                          >
+                            <Flag className={`h-3.5 w-3.5 ${post.isFlagged ? "fill-red-500 text-red-500" : ""}`} />
+                            {post.isFlagged ? "Flagged" : "Flag"}
                           </Button>
                           <Button
                             size="sm"
@@ -251,7 +296,7 @@ export default function PostsPage() {
                               setSelectedPost(post);
                               setShowDeleteDialog(true);
                             }}
-                            className="text-xs font-semibold cursor-pointer"
+                            className="text-xs font-semibold cursor-pointer h-8"
                           >
                             Delete
                           </Button>
