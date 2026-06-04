@@ -74,12 +74,10 @@ exports.signin = async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // Check if email is verified
+    // Check if user is verified by Admin
     if (!user.Is_Verified) {
       return res.status(403).json({
-        error: "Please verify your email before signing in.",
-        needsVerification: true,
-        email: user.Email_ID,
+        error: "Your account is pending verification by an administrator. Please try again after approval.",
       });
     }
 
@@ -200,7 +198,7 @@ exports.verifyEmail = async (req, res) => {
     const [insertResult] = await pool.query(
       `INSERT INTO User_Table 
         (User_Type_ID, User_Fname, User_Lname, Gender, Phone_no, Phone_no_2, Email_ID, Password, Address, Is_Verified) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
       [userTypeId, userData.firstName, userData.lastName, userData.gender, userData.primaryPhone, userData.secondaryPhone, userData.email, userData.hashedPassword, userData.address]
     );
 

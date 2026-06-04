@@ -28,6 +28,7 @@ import ProjectsPage from "./pages/admin/ProjectsPage";
 import NewsPage from "./pages/admin/NewsPage";
 import ConnectionsPage from "./pages/admin/ConnectionsPage";
 import SystemSettingsPage from "./pages/admin/SystemSettingsPage";
+import AnalyticsPage from "./pages/admin/AnalyticsPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 function App() {
@@ -82,6 +83,7 @@ function App() {
           <Route path="news" element={<NewsPage />} />
           <Route path="connections" element={<ConnectionsPage />} />
           <Route path="settings" element={<SystemSettingsPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
         </Route>
       </Routes>
     </Router>
