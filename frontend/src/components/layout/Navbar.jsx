@@ -117,8 +117,8 @@ export default function Navbar() {
     <>
       <header
         className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled
-            ? "bg-white/80 backdrop-blur-xl shadow-lg shadow-indigo-100/30 border-b border-gray-200/60"
-            : "bg-white/95 backdrop-blur-md border-b border-gray-100"
+          ? "bg-white/80 backdrop-blur-xl shadow-lg shadow-indigo-100/30 border-b border-gray-200/60"
+          : "bg-white/95 backdrop-blur-md border-b border-gray-100"
           }`}
       >
         <nav
@@ -131,13 +131,13 @@ export default function Navbar() {
               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity" />
               <img
                 src={logo}
-                alt="Alumni Connect"
+                alt="College Connect"
                 className="relative h-10 w-auto object-contain"
               />
             </div>
             <div className="hidden sm:block">
               <span className="text-lg font-bold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
-                Alumni Connect
+                College Connect
               </span>
               <span className="block text-[10px] font-medium text-gray-400 -mt-0.5 tracking-wide">
                 MANIT Bhopal
