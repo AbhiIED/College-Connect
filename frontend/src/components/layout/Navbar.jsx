@@ -41,6 +41,16 @@ function useClickOutside(ref, handler) {
   }, [ref, handler]);
 }
 
+/** Relative time formatter */
+function timeAgo(ts) {
+  if (!ts) return "";
+  const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago;`;
+}
+
 /* ───────────────────────────── component ─────────────────────────── */
 
 export default function Navbar() {
@@ -53,6 +63,7 @@ export default function Navbar() {
   const [feedOpen, setFeedOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   /* ── refs for click-outside ── */
   const feedRef = useRef(null);
@@ -83,6 +94,30 @@ export default function Navbar() {
     navigate("/signin");
   };
 
+  /* ── fetch notifications ── */
+  const fetchNotifications = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      const res = await fetch(`${API_BASE_URL}/api/user/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   /* ── active-link helper ── */
   const linkClass = ({ isActive }) =>
     `relative flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
@@ -96,14 +131,7 @@ export default function Navbar() {
       : "text-gray-700 hover:text-brand-600 hover:bg-brand-50/60"
     }`;
 
-  /* ── sample notifications ── */
-  const notifications = [
-    { id: 1, text: "New event this weekend!", icon: "🎉", time: "2h ago" },
-    { id: 2, text: "John Doe sent you a connection request.", icon: "👤", time: "5h ago" },
-    { id: 3, text: "New article posted in your feed.", icon: "📰", time: "1d ago" },
-    { id: 4, text: "New job posting available.", icon: "💼", time: "1d ago" },
-    { id: 5, text: "Alumni meetup tomorrow!", icon: "📅", time: "2d ago" },
-  ];
+
 
   /* ── dropdown animation config ── */
   const dropdownVariants = {
@@ -117,8 +145,8 @@ export default function Navbar() {
     <>
       <header
         className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled
-            ? "bg-white/80 backdrop-blur-xl shadow-lg shadow-indigo-100/30 border-b border-gray-200/60"
-            : "bg-white/95 backdrop-blur-md border-b border-gray-100"
+          ? "bg-white/80 backdrop-blur-xl shadow-lg shadow-indigo-100/30 border-b border-gray-200/60"
+          : "bg-white/95 backdrop-blur-md border-b border-gray-100"
           }`}
       >
         <nav
@@ -131,13 +159,13 @@ export default function Navbar() {
               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity" />
               <img
                 src={logo}
-                alt="Alumni Connect"
+                alt="College Connect"
                 className="relative h-10 w-auto object-contain"
               />
             </div>
             <div className="hidden sm:block">
               <span className="text-lg font-bold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
-                Alumni Connect
+                College Connect
               </span>
               <span className="block text-[10px] font-medium text-gray-400 -mt-0.5 tracking-wide">
                 MANIT Bhopal
@@ -219,12 +247,21 @@ export default function Navbar() {
             {/* Notifications */}
             <div className="relative" ref={notifRef}>
               <button
-                onClick={() => { setNotifOpen(!notifOpen); setProfileOpen(false); setFeedOpen(false); }}
+                onClick={() => {
+                  setNotifOpen(!notifOpen);
+                  setProfileOpen(false);
+                  setFeedOpen(false);
+                  if (!notifOpen) {
+                    fetchNotifications();
+                  }
+                }}
                 className="relative p-2.5 rounded-xl text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/60 transition-all duration-200"
                 id="nav-notifications-toggle"
               >
                 <Bell className="h-5 w-5" />
-                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white" />
+                )}
               </button>
 
               <AnimatePresence>
@@ -239,27 +276,45 @@ export default function Navbar() {
                   >
                     <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
                       <h3 className="text-sm font-bold text-gray-900">Notifications</h3>
-                      <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                        {notifications.length} new
-                      </span>
+                      {notifications.length > 0 && (
+                        <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                          {notifications.length} new
+                        </span>
+                      )}
                     </div>
                     <div className="max-h-72 overflow-y-auto">
-                      {notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          className="flex items-start gap-3 px-5 py-3 hover:bg-indigo-50/40 transition-colors cursor-pointer border-b border-gray-50 last:border-0"
-                        >
-                          <span className="text-lg mt-0.5">{n.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-700 leading-snug">{n.text}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{n.time}</p>
-                          </div>
+                      {notifications.length === 0 ? (
+                        <div className="py-8 text-center text-sm text-gray-400 font-medium">
+                          No new notifications
                         </div>
-                      ))}
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => {
+                              setNotifOpen(false);
+                              if (n.link) navigate(n.link);
+                            }}
+                            className="flex items-start gap-3 px-5 py-3 hover:bg-indigo-50/40 transition-colors cursor-pointer border-b border-gray-50 last:border-0"
+                          >
+                            <span className="text-lg mt-0.5">{n.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-700 leading-snug">{n.text}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">{timeAgo(n.timestamp)}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                     <div className="px-5 py-3 border-t border-gray-100">
-                      <button className="w-full text-center text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
-                        View all notifications →
+                      <button
+                        onClick={() => {
+                          setNotifOpen(false);
+                          navigate("/connections");
+                        }}
+                        className="w-full text-center text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                      >
+                        View connection requests →
                       </button>
                     </div>
                   </motion.div>

@@ -48,7 +48,12 @@ export default function Homepage() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   useEffect(() => {
-    fetch(`${API}/admin/stats`)
+    const token = localStorage.getItem("token");
+    fetch(`${API}/alumni/stats`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
       .then((r) => r.json())
       .then((d) => {
         setStats({

@@ -48,7 +48,7 @@ exports.getPendingRequests = async (req, res) => {
   }
 };
 
-// Get all accepted connections for current user
+// Get all accepted connections for current user (supports both alumni and student connections)
 exports.getConnections = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -57,11 +57,15 @@ exports.getConnections = async (req, res) => {
       `SELECT 
         c.Connection_ID,
         CASE WHEN c.Sender_ID = ? THEN c.Receiver_ID ELSE c.Sender_ID END AS Connected_User_ID,
-        u.User_Fname, u.User_Lname, u.Profile_Pic,
-        a.Job_Title, a.Company_Name, a.Course, a.Graduation_Year
+        u.User_Fname, u.User_Lname, u.Profile_Pic, u.User_Type_ID,
+        a.Job_Title, a.Company_Name,
+        COALESCE(a.Course, s.Course) AS Course,
+        COALESCE(a.Graduation_Year, s.Graduation_Year) AS Graduation_Year,
+        s.Current_Year
       FROM User_Connection c
       JOIN User_Table u ON (CASE WHEN c.Sender_ID = ? THEN c.Receiver_ID ELSE c.Sender_ID END) = u.User_ID
       LEFT JOIN Alumni_Table a ON u.User_ID = a.User_ID
+      LEFT JOIN Student_Table s ON u.User_ID = s.User_ID
       WHERE (c.Sender_ID = ? OR c.Receiver_ID = ?) AND c.Status = 'Accepted'
       ORDER BY c.Updated_At DESC`,
       [userId, userId, userId, userId]

@@ -59,6 +59,7 @@ const initialFormData = {
   skills: "",
   address: "",
   password: "",
+  role: "",
 };
 
 export default function Signup() {
@@ -70,8 +71,8 @@ export default function Signup() {
   const navigate = useNavigate();
 
   const currentYear = new Date().getFullYear();
-  const isAlumni = formData.endYear && parseInt(formData.endYear, 10) < currentYear;
-  const isStudent = formData.endYear && parseInt(formData.endYear, 10) >= currentYear;
+  const isAlumni = formData.role === "1";
+  const isStudent = formData.role === "2";
 
   const semesterOptions = {
     "1st": [1, 2],
@@ -120,7 +121,7 @@ export default function Signup() {
 
   const nextStep = () => {
     if (step === 1) {
-      if (!formData.firstName || !formData.lastName || !formData.gender || !formData.email || !formData.primaryPhone || !formData.password) {
+      if (!formData.firstName || !formData.lastName || !formData.gender || !formData.email || !formData.primaryPhone || !formData.password || !formData.role) {
         return setErrorMessage("Please fill all required fields in Step 1.");
       }
     }
@@ -233,7 +234,14 @@ export default function Signup() {
                     <InputField label="Primary Phone" type="tel" name="primaryPhone" placeholder="+1 234 567 8900" value={formData.primaryPhone} onChange={handleChange} required />
                   </div>
 
-                  <InputField label="Secondary Phone" type="tel" name="secondaryPhone" placeholder="+1 987 654 3210 (Optional)" value={formData.secondaryPhone} onChange={handleChange} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <InputField label="Secondary Phone" type="tel" name="secondaryPhone" placeholder="+1 987 654 3210 (Optional)" value={formData.secondaryPhone} onChange={handleChange} />
+                    <SelectBox label="Register as" name="role" value={formData.role} onChange={handleChange} required>
+                      <option value="">Select Role</option>
+                      <option value="2">Student</option>
+                      <option value="1">Alumni</option>
+                    </SelectBox>
+                  </div>
                   
                   <InputField label="Email Address" type="email" name="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} required />
                   <InputField label="Password" type="password" name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required />
@@ -245,7 +253,7 @@ export default function Signup() {
               {step === 2 && (
                 <motion.div key="step2" variants={pageVariants} initial="initial" animate="in" exit="out" transition={{ duration: 0.3 }} className="space-y-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <InputField label="Scholar ID" icon={IdentificationIcon} type="text" name="scholarId" placeholder="102345" value={formData.scholarId} onChange={handleChange} required />
+                    <InputField label={isAlumni ? "Enrollment No" : "Scholar ID"} icon={IdentificationIcon} type="text" name="scholarId" placeholder={isAlumni ? "e.g. EN12345" : "e.g. 102345"} value={formData.scholarId} onChange={handleChange} required />
                     <InputField label="Graduation Year" type="number" name="endYear" placeholder="e.g. 2026" value={formData.endYear} onChange={handleChange} required />
                   </div>
                   
@@ -331,11 +339,11 @@ export default function Signup() {
               ) : <div />}
 
               {step < 3 ? (
-                <button type="button" onClick={nextStep} className="px-8 py-3 bg-gray-900 text-white font-semibold text-sm rounded-xl hover:bg-gray-800 transition-all shadow-md hover:shadow-lg active:scale-95">
+                <button key="btn-continue" type="button" onClick={nextStep} className="px-8 py-3 bg-gray-900 text-white font-semibold text-sm rounded-xl hover:bg-gray-800 transition-all shadow-md hover:shadow-lg active:scale-95">
                   Continue
                 </button>
               ) : (
-                <button type="submit" disabled={isSubmitting} className="px-8 py-3 bg-indigo-600 text-white font-semibold text-sm rounded-xl hover:bg-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:shadow-none active:scale-95 flex items-center gap-2">
+                <button key="btn-submit" type="submit" disabled={isSubmitting} className="px-8 py-3 bg-indigo-600 text-white font-semibold text-sm rounded-xl hover:bg-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:shadow-none active:scale-95 flex items-center gap-2">
                   {isSubmitting ? "Processing..." : "Create Account 🚀"}
                 </button>
               )}

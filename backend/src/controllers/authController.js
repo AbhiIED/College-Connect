@@ -189,10 +189,10 @@ exports.verifyEmail = async (req, res) => {
       return res.status(400).json({ error: "Registration data expired. Please sign up again." });
     }
 
-    const currentCalendarYear = new Date().getFullYear();
-    let userTypeId = ROLES.STUDENT;
-    if (userData.endYear && parseInt(userData.endYear) < currentCalendarYear) {
-      userTypeId = ROLES.ALUMNI;
+    let userTypeId = parseInt(userData.role);
+    if (![ROLES.ALUMNI, ROLES.STUDENT].includes(userTypeId)) {
+      const currentCalendarYear = new Date().getFullYear();
+      userTypeId = (userData.endYear && parseInt(userData.endYear) < currentCalendarYear) ? ROLES.ALUMNI : ROLES.STUDENT;
     }
 
     const [insertResult] = await pool.query(
@@ -205,10 +205,11 @@ exports.verifyEmail = async (req, res) => {
     const userId = insertResult.insertId;
 
     if (userTypeId === ROLES.STUDENT) {
+      const currentYearVal = parseInt(userData.currentYear) || 1;
       await pool.query(
         `INSERT INTO Student_Table (Scholar_No, User_ID, Department, Course, Current_Year, Graduation_Year) 
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [userData.scholarId, userId, userData.department, userData.branch, 2025, userData.endYear]
+        [userData.scholarId, userId, userData.department, userData.branch, currentYearVal, userData.endYear]
       );
     } else if (userTypeId === ROLES.ALUMNI) {
       const alumniId = Math.floor(10000 + Math.random() * 90000);

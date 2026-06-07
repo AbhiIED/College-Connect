@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 
 const RegisterPage = () => {
   const location = useLocation();
@@ -43,7 +41,6 @@ const RegisterPage = () => {
 
   return (
     <>
-      <Navbar />
       <div
 
         className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-amber-100 py-16 px-6 mt-6"
@@ -156,7 +153,6 @@ const RegisterPage = () => {
           </form>
         </div>
       </div>
-      <Footer />
     </>
   );
 };

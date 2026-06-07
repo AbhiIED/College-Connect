@@ -40,6 +40,26 @@ function InfoRow({ icon: Icon, label, value }) {
   );
 }
 
+// Input row for editable profile details
+function InputRow({ icon: Icon, label, value, onChange, disabled = false, type = "text" }) {
+  return (
+    <div className="space-y-1.5 py-2">
+      <label className="text-xs text-gray-400 uppercase tracking-wide font-semibold flex items-center gap-1.5">
+        {Icon && <Icon className="w-3.5 h-3.5 text-indigo-600" />} {label}
+      </label>
+      <input
+        type={type}
+        disabled={disabled}
+        value={value || ""}
+        onChange={onChange}
+        className={`w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+          disabled ? "bg-gray-50 text-gray-400 cursor-not-allowed border-gray-100" : "bg-white text-gray-800 shadow-sm"
+        }`}
+      />
+    </div>
+  );
+}
+
 export default function ManageAccount() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -48,6 +68,7 @@ export default function ManageAccount() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("profile");
   const [saving, setSaving] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   // Settings state
   const [profileType, setProfileType] = useState("public");
@@ -126,6 +147,68 @@ export default function ManageAccount() {
       else showToast(data.error || "Save failed", "error");
     } catch { showToast("Save failed", "error"); }
     finally { setSaving(false); }
+  };
+
+  // Save profile details
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const res = await fetch(`${API}/api/user/update-profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          firstName: user.firstName,
+          lastName: user.lastName,
+          gender: user.gender,
+          phone: user.phone,
+          phone2: user.phone2,
+          address: user.address,
+          enrollmentNo: user.enrollmentNo,
+          department: user.department,
+          course: user.course,
+          graduationYear: user.graduationYear,
+          currentYear: user.currentYear,
+          jobTitle: user.jobTitle,
+          companyName: user.companyName,
+          currentCity: user.currentCity,
+          currentCountry: user.currentCountry,
+          sector: user.sector,
+          skills: user.skills,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showToast("Profile details updated successfully!");
+        if (data.user && data.user.profilePic && !data.user.profilePic.startsWith("http")) {
+          data.user.profilePic = `${API}${data.user.profilePic}`;
+        }
+        setUser(data.user);
+
+        // Sync with localStorage
+        const localUserStr = localStorage.getItem("user");
+        if (localUserStr) {
+          const localUser = JSON.parse(localUserStr);
+          localUser.User_Fname = data.user.firstName;
+          localUser.User_Lname = data.user.lastName;
+          localUser.Gender = data.user.gender;
+          localUser.Phone_no = data.user.phone;
+          localUser.Phone_no_2 = data.user.phone2;
+          localUser.Address = data.user.address;
+          localStorage.setItem("user", JSON.stringify(localUser));
+        }
+      } else {
+        showToast(data.error || "Update failed", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Save failed", "error");
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   // Change password
@@ -261,11 +344,13 @@ export default function ManageAccount() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <UserCog className="w-5 h-5 text-indigo-600" /> Personal Information
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                      <InfoRow icon={Mail} label="Email" value={user.email} />
-                      <InfoRow icon={Phone} label="Phone" value={user.phone} />
-                      <InfoRow icon={User} label="Gender" value={user.gender} />
-                      <InfoRow icon={MapPin} label="Address" value={user.address} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                      <InputRow icon={User} label="First Name" value={user.firstName} onChange={(e) => setUser({ ...user, firstName: e.target.value })} />
+                      <InputRow icon={User} label="Last Name" value={user.lastName} onChange={(e) => setUser({ ...user, lastName: e.target.value })} />
+                      <InputRow icon={Mail} label="Email Address" value={user.email} disabled />
+                      <InputRow icon={Phone} label="Phone Number" value={user.phone} onChange={(e) => setUser({ ...user, phone: e.target.value })} />
+                      <InputRow icon={User} label="Gender" value={user.gender} onChange={(e) => setUser({ ...user, gender: e.target.value })} />
+                      <InputRow icon={MapPin} label="Address" value={user.address} onChange={(e) => setUser({ ...user, address: e.target.value })} />
                     </div>
                   </div>
 
@@ -274,12 +359,14 @@ export default function ManageAccount() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <GraduationCap className="w-5 h-5 text-indigo-600" /> Academic Details
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                      <InfoRow icon={Award} label="Enrollment / Scholar No" value={user.enrollmentNo} />
-                      <InfoRow icon={BookOpen} label="Department" value={user.department} />
-                      <InfoRow icon={BookOpen} label="Course / Branch" value={user.course} />
-                      <InfoRow icon={Calendar} label="Graduation Year" value={user.graduationYear} />
-                      {user.currentYear && <InfoRow icon={Calendar} label="Current Year" value={`Year ${user.currentYear}`} />}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                      <InputRow icon={Award} label="Enrollment / Scholar No" value={user.enrollmentNo} onChange={(e) => setUser({ ...user, enrollmentNo: e.target.value })} />
+                      <InputRow icon={BookOpen} label="Department" value={user.department} onChange={(e) => setUser({ ...user, department: e.target.value })} />
+                      <InputRow icon={BookOpen} label="Course / Branch" value={user.course} onChange={(e) => setUser({ ...user, course: e.target.value })} />
+                      <InputRow icon={Calendar} label="Graduation Year" value={user.graduationYear} onChange={(e) => setUser({ ...user, graduationYear: e.target.value })} type="number" />
+                      {user.userType === 2 && (
+                        <InputRow icon={Calendar} label="Current Year" value={user.currentYear} onChange={(e) => setUser({ ...user, currentYear: e.target.value })} type="number" />
+                      )}
                     </div>
                   </div>
 
@@ -289,26 +376,27 @@ export default function ManageAccount() {
                       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                         <Briefcase className="w-5 h-5 text-indigo-600" /> Professional Details
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                        <InfoRow icon={Briefcase} label="Job Title" value={user.jobTitle} />
-                        <InfoRow icon={Building2} label="Company" value={user.companyName} />
-                        <InfoRow icon={Globe} label="Location" value={[user.currentCity, user.currentCountry].filter(Boolean).join(", ")} />
-                        <InfoRow icon={Wrench} label="Sector" value={user.sector} />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <InputRow icon={Briefcase} label="Job Title" value={user.jobTitle} onChange={(e) => setUser({ ...user, jobTitle: e.target.value })} />
+                        <InputRow icon={Building2} label="Company" value={user.companyName} onChange={(e) => setUser({ ...user, companyName: e.target.value })} />
+                        <InputRow icon={Globe} label="Current City" value={user.currentCity} onChange={(e) => setUser({ ...user, currentCity: e.target.value })} />
+                        <InputRow icon={Globe} label="Current Country" value={user.currentCountry} onChange={(e) => setUser({ ...user, currentCountry: e.target.value })} />
+                        <InputRow icon={Wrench} label="Sector" value={user.sector} onChange={(e) => setUser({ ...user, sector: e.target.value })} />
+                        <InputRow icon={Wrench} label="Skills (comma separated)" value={user.skills} onChange={(e) => setUser({ ...user, skills: e.target.value })} />
                       </div>
-                      {user.skills && (
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-2">Skills</p>
-                          <div className="flex flex-wrap gap-2">
-                            {user.skills.split(",").map((s, i) => (
-                              <span key={i} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-medium">
-                                {s.trim()}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
+
+                  {/* Save Profile Button */}
+                  <div className="flex justify-end pt-4">
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={savingProfile}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition shadow-md disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" /> {savingProfile ? "Saving Profile..." : "Save Profile Details"}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Right: About */}

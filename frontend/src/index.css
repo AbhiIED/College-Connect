@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* === Alumni Connect — Design System === */
+/* === College Connect — Design System === */
 :root {
   /* Brand Colors & Base Tokens */
   --color-primary: #4f46e5;      /* Deep brand Indigo */
