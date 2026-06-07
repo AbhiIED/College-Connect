@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import {
   MessageCircle, Search, X, Users, Sparkles, Loader2,
   UserCheck, UserX, Clock, Briefcase, Building2, GraduationCap,
@@ -147,11 +148,10 @@ function PendingRequestCard({ req, onRespond }) {
 function ChatWindow({ user, onClose }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(true);
   const name = `${user.User_Fname} ${user.User_Lname}`;
   const currentUserId = JSON.parse(localStorage.getItem("user") || "{}").User_ID;
   const partnerId = user.Connected_User_ID || user.User_ID || user.Sender_ID;
-
+  const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -159,52 +159,52 @@ function ChatWindow({ user, onClose }) {
   };
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const res = await fetch(`${API}/chat/${partnerId}`, {
-          headers: { Authorization: `Bearer ${getToken()}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setMessages(data);
-        }
-      } catch (err) {
-        console.error("Error fetching messages:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Establish socket connection to backend URL
+    socketRef.current = io(API);
 
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
-    return () => clearInterval(interval);
-  }, [partnerId]);
+    // Register active user session
+    socketRef.current.emit("register_user", currentUserId);
+
+    // Register listener for incoming real-time messages
+    socketRef.current.on("receive_message", (msg) => {
+      if (msg.Sender_ID === partnerId) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    });
+
+    // Cleanup connection
+    return () => {
+      socketRef.current.disconnect();
+    };
+  }, [partnerId, currentUserId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async () => {
+  const sendMessage = () => {
     if (!input.trim()) return;
-    try {
-      const res = await fetch(`${API}/chat/send`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`
-        },
-        body: JSON.stringify({ receiverId: partnerId, message: input })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setMessages((prev) => [...prev, data.message]);
-          setInput("");
-        }
-      }
-    } catch (err) {
-      console.error("Error sending message:", err);
-    }
+
+    const msgPayload = {
+      senderId: currentUserId,
+      receiverId: partnerId,
+      text: input
+    };
+
+    // Broadcast message via WebSockets
+    socketRef.current.emit("send_message", msgPayload);
+
+    // Instantly push to screen locally
+    const localMsg = {
+      Message_ID: Math.random(),
+      Sender_ID: currentUserId,
+      Receiver_ID: partnerId,
+      Message: input,
+      Sent_At: new Date()
+    };
+
+    setMessages((prev) => [...prev, localMsg]);
+    setInput("");
   };
 
   return createPortal(
@@ -222,11 +222,7 @@ function ChatWindow({ user, onClose }) {
       </div>
 
       <div className="flex-1 p-4 overflow-y-auto text-sm space-y-2">
-        {loading && messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
-          </div>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="text-center py-8">
             <MessageCircle className="w-8 h-8 text-gray-200 mx-auto mb-2" />
             <p className="text-gray-400 text-xs">Start a conversation with {user.User_Fname}</p>

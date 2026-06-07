@@ -45,27 +45,38 @@ exports.getHeroAlumni = async (req, res) => {
 
     const [rows] = await pool.query(
       `SELECT 
+        u.User_ID,
         u.User_Fname,
         u.User_Lname,
         a.Graduation_Year,
         a.Course,
-        IFNULL(u.Profile_Pic, '/uploads/profile_pics/default_male.png') AS Profile_Pic
+        IFNULL(u.Profile_Pic, '/uploads/profile_pics/default_male.png') AS Profile_Pic,
+        c.Status AS connectionStatus,
+        c.Sender_ID AS connectionSenderID,
+        c.Connection_ID AS connectionId
       FROM Alumni_Table a
       JOIN User_Table u ON a.User_ID = u.User_ID
+      LEFT JOIN User_Connection c ON 
+        (c.Sender_ID = ? AND c.Receiver_ID = u.User_ID) OR 
+        (c.Sender_ID = u.User_ID AND c.Receiver_ID = ?)
       WHERE u.User_ID != ?
       ORDER BY a.Graduation_Year DESC
       LIMIT 20;`,
-      [currentUserId]
+      [currentUserId, currentUserId, currentUserId]
     );
 
     const baseUrl = `${req.protocol}://${req.get("host")}`;
 
     const alumni = rows.map((row) => ({
+      id: row.User_ID,
       name: `${row.User_Fname} ${row.User_Lname}`,
       course: `${row.Course} ${row.Graduation_Year}`,
       img: row.Profile_Pic.startsWith("http")
         ? row.Profile_Pic
         : `${baseUrl}${row.Profile_Pic}`,
+      connectionStatus: row.connectionStatus,
+      connectionSenderID: row.connectionSenderID,
+      connectionId: row.connectionId
     }));
 
     res.json(alumni);

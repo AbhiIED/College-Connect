@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, UserPlus, Check, ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { Search, UserPlus, Check, ChevronLeft, ChevronRight, Users, UserCheck, UserX, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -8,8 +8,9 @@ export default function HeroSection() {
   const [alumni, setAlumni] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState("");
-  const [sent, setSent] = useState([]);
   const [scrollEl, setScrollEl] = useState(null);
+
+  const currentUserId = JSON.parse(localStorage.getItem("user") || "{}").User_ID;
 
   useEffect(() => {
     fetch(`${API}/alumni/hero`, {
@@ -36,6 +37,56 @@ export default function HeroSection() {
         )
       );
   }, [search, alumni]);
+
+  const handleConnect = async (memberId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/connections/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ receiverId: memberId })
+      });
+      if (res.ok) {
+        const updateList = (prev) =>
+          prev.map((item) =>
+            item.id === memberId
+              ? { ...item, connectionStatus: "Pending", connectionSenderID: currentUserId }
+              : item
+          );
+        setAlumni(updateList);
+        setFiltered(updateList);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRespond = async (memberId, connectionId, status) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/connections/${connectionId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        const updateList = (prev) =>
+          prev.map((item) =>
+            item.id === memberId ? { ...item, connectionStatus: status } : item
+          );
+        setAlumni(updateList);
+        setFiltered(updateList);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const scroll = (dir) => {
     if (!scrollEl) return;
@@ -97,11 +148,12 @@ export default function HeroSection() {
           ref={setScrollEl}
           className="flex gap-4 overflow-x-auto scroll-smooth pb-4 scrollbar-none snap-x snap-mandatory"
         >
-          {filtered.map((member, i) => {
-            const isSent = sent.includes(i);
+          {filtered.map((member) => {
+            const status = member.connectionStatus;
+            const isSender = member.connectionSenderID === currentUserId;
             return (
               <div
-                key={i}
+                key={member.id}
                 className="flex-none w-48 snap-start bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all p-5 flex flex-col items-center text-center group/card"
               >
                 {/* Avatar */}
@@ -126,22 +178,59 @@ export default function HeroSection() {
                   {member.course}
                 </p>
 
-                <button
-                  onClick={() =>
-                    setSent((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]))
+                {(() => {
+                  if (status === "Accepted") {
+                    return (
+                      <button
+                        disabled
+                        className="mt-3 w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 cursor-not-allowed"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" /> Connected
+                      </button>
+                    );
                   }
-                  className={`mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-                    isSent
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
-                  }`}
-                >
-                  {isSent ? (
-                    <><Check className="w-3.5 h-3.5" /> Sent</>
-                  ) : (
-                    <><UserPlus className="w-3.5 h-3.5" /> Connect</>
-                  )}
-                </button>
+
+                  if (status === "Pending") {
+                    if (isSender) {
+                      return (
+                        <button
+                          disabled
+                          className="mt-3 w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-semibold bg-gray-50 text-gray-500 border border-gray-150 cursor-not-allowed"
+                        >
+                          <Clock className="w-3.5 h-3.5 animate-pulse" /> Pending
+                        </button>
+                      );
+                    } else {
+                      return (
+                        <div className="mt-3 flex gap-1.5 w-full">
+                          <button
+                            onClick={() => handleRespond(member.id, member.connectionId, "Accepted")}
+                            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition"
+                            title="Accept"
+                          >
+                            <UserCheck className="w-3 h-3" /> Accept
+                          </button>
+                          <button
+                            onClick={() => handleRespond(member.id, member.connectionId, "Rejected")}
+                            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-bold bg-red-50 text-red-600 hover:bg-red-100 transition"
+                            title="Decline"
+                          >
+                            <UserX className="w-3 h-3" /> Decline
+                          </button>
+                        </div>
+                      );
+                    }
+                  }
+
+                  return (
+                    <button
+                      onClick={() => handleConnect(member.id)}
+                      className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm active:scale-[0.98]"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" /> Connect
+                    </button>
+                  );
+                })()}
               </div>
             );
           })}
