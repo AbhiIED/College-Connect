@@ -55,6 +55,59 @@ export default function Directory() {
       .catch((err) => { console.error("Error fetching alumni:", err); setLoading(false); });
   }, [navigate]);
 
+  const handleConnect = async (alumniId, targetUserId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/connections/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ receiverId: targetUserId })
+      });
+      if (res.ok) {
+        setAlumni((prev) =>
+          prev.map((item) =>
+            item.Alumni_ID === alumniId
+              ? { ...item, connectionStatus: "Pending", connectionSenderID: JSON.parse(localStorage.getItem("user") || "{}").User_ID }
+              : item
+          )
+        );
+      } else {
+        const err = await res.json();
+        console.error(err.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRespond = async (alumniId, connectionId, status) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/connections/${connectionId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        setAlumni((prev) =>
+          prev.map((item) =>
+            item.Alumni_ID === alumniId
+              ? { ...item, connectionStatus: status }
+              : item
+          )
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   /* ── Derived filter options ── */
   const departments = useMemo(() => {
     const depts = [...new Set(alumni.map((a) => a.Department).filter(Boolean))];
@@ -327,7 +380,10 @@ export default function Directory() {
               <AlumniCard
                 key={item.Alumni_ID}
                 alumni={item}
-                onClick={() => navigate(`/alumni/${item.Alumni_ID}`)}
+                currentUserId={JSON.parse(localStorage.getItem("user") || "{}").User_ID}
+                onConnect={(targetUserId) => handleConnect(item.Alumni_ID, targetUserId)}
+                onRespond={(connectionId, status) => handleRespond(item.Alumni_ID, connectionId, status)}
+                onClick={() => navigate(`/alumni/${item.User_ID}`)}
               />
             ))}
           </div>

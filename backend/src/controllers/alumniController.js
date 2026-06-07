@@ -18,11 +18,17 @@ exports.getAllAlumni = async (req, res) => {
         a.Job_Title,
         a.Company_Name,
         a.Current_City AS currentCity,
-        a.Skills AS skills
+        a.Skills AS skills,
+        c.Status AS connectionStatus,
+        c.Sender_ID AS connectionSenderID,
+        c.Connection_ID AS connectionId
       FROM Alumni_Table a
       JOIN User_Table u ON a.User_ID = u.User_ID
+      LEFT JOIN User_Connection c ON 
+        (c.Sender_ID = ? AND c.Receiver_ID = u.User_ID) OR 
+        (c.Sender_ID = u.User_ID AND c.Receiver_ID = ?)
       WHERE u.User_ID != ?;`,
-      [currentUserId]
+      [currentUserId, currentUserId, currentUserId]
     );
 
     res.json(rows);
@@ -69,41 +75,82 @@ exports.getHeroAlumni = async (req, res) => {
   }
 };
 
-// Get single alumni by ID
+// Get single alumni by ID (supports unified lookup by User_ID for both alumni and students)
 exports.getAlumniById = async (req, res) => {
   try {
-    const { id } = req.params;
+    const currentUserId = req.user.id;
+    const { id } = req.params; // this parameter is target User_ID
 
     const [rows] = await pool.query(
       `SELECT 
-        a.Alumni_ID,
         u.User_ID,
+        u.User_Type_ID,
         u.User_Fname,
         u.User_Lname,
         u.Email_ID,
         u.Profile_Pic,
-        a.Graduation_Year,
-        a.Course,
-        a.Department,
+        u.Gender,
+        u.Phone_no,
+        u.Address,
+        -- Alumni fields
+        a.Alumni_ID,
+        a.Enrollment_No,
         a.Job_Title,
         a.Company_Name,
         a.Current_City AS currentCity,
         a.Current_Country AS currentCountry,
+        a.Sector,
         a.Skills AS skills,
-        a.About
-      FROM Alumni_Table a
-      JOIN User_Table u ON a.User_ID = u.User_ID
-      WHERE a.Alumni_ID = ?`,
-      [id]
+        a.About,
+        -- Student fields
+        s.Student_ID,
+        s.Scholar_No,
+        s.Current_Year,
+        -- Unified fields (present in both)
+        COALESCE(a.Department, s.Department) AS Department,
+        COALESCE(a.Course, s.Course) AS Course,
+        COALESCE(a.Graduation_Year, s.Graduation_Year) AS Graduation_Year,
+        -- Connection info
+        c.Status AS connectionStatus,
+        c.Sender_ID AS connectionSenderID,
+        c.Connection_ID AS connectionId
+      FROM User_Table u
+      LEFT JOIN Alumni_Table a ON u.User_ID = a.User_ID
+      LEFT JOIN Student_Table s ON u.User_ID = s.User_ID
+      LEFT JOIN User_Connection c ON 
+        (c.Sender_ID = ? AND c.Receiver_ID = u.User_ID) OR 
+        (c.Sender_ID = u.User_ID AND c.Receiver_ID = ?)
+      WHERE u.User_ID = ?`,
+      [currentUserId, currentUserId, id]
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Alumni not found" });
+      return res.status(404).json({ error: "Profile not found" });
     }
 
     res.json(rows[0]);
   } catch (err) {
-    console.error("Error fetching alumni by ID:", err);
-    res.status(500).json({ error: "Failed to fetch alumni" });
+    console.error("Error fetching profile by ID:", err);
+    res.status(500).json({ error: "Failed to fetch profile" });
+  }
+};
+
+// Get platform stats for homepage (accessible by any logged in user)
+exports.getPublicStats = async (req, res) => {
+  try {
+    const [[alumni]] = await pool.query("SELECT COUNT(*) AS totalAlumni FROM alumni_table");
+    const [[students]] = await pool.query("SELECT COUNT(*) AS totalStudents FROM student_table");
+    const [[events]] = await pool.query("SELECT COUNT(*) AS totalEvents FROM event_table");
+    const [[jobs]] = await pool.query("SELECT COUNT(*) AS totalJobs FROM job_postings");
+
+    res.json({
+      totalAlumni: alumni.totalAlumni || 0,
+      totalStudents: students.totalStudents || 0,
+      totalEvents: events.totalEvents || 0,
+      totalJobs: jobs.totalJobs || 0,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching public stats:", err);
+    res.status(500).json({ error: "Failed to load statistics" });
   }
 };

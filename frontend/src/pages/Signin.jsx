@@ -7,11 +7,36 @@ export default function Signin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSignin = async (e) => {
     e.preventDefault();
     setError("");
+    
+    // Client-side Validation
+    let hasError = false;
+    const errors = { email: "", password: "" };
+
+    if (!email.trim()) {
+      errors.email = "Email address is required";
+      hasError = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Please enter a valid email address";
+      hasError = true;
+    }
+
+    if (!password) {
+      errors.password = "Password is required";
+      hasError = true;
+    }
+
+    if (hasError) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({ email: "", password: "" });
     setIsSubmitting(true);
 
     try {
@@ -66,7 +91,7 @@ export default function Signin() {
           <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">Sign In</h2>
           <p className="text-sm text-gray-500 text-center mb-8">Access your Alumni Sphere account.</p>
 
-          <form onSubmit={handleSignin} className="space-y-6">
+          <form onSubmit={handleSignin} className="space-y-6" noValidate>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-1">
                 Email address
@@ -75,27 +100,43 @@ export default function Signin() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="block w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-base text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: "" }));
+                }}
+                className={`block w-full rounded-lg border-2 bg-white px-3 py-2 text-base text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
+                  fieldErrors.email ? "border-red-500 focus:border-red-500 focus:ring-red-200" : "border-gray-300"
+                }`}
               />
+              {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-900 mb-1">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-900">
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="block w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-base text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: "" }));
+                }}
+                className={`block w-full rounded-lg border-2 bg-white px-3 py-2 text-base text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
+                  fieldErrors.password ? "border-red-500 focus:border-red-500 focus:ring-red-200" : "border-gray-300"
+                }`}
               />
+              {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
             </div>
-
-
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 

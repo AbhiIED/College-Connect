@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   UserPlus, MapPin, Briefcase, Building2, GraduationCap,
   BookOpen, Mail, Globe, ArrowLeft, Loader2, Sparkles,
-  Code, Award
+  Code, Award, UserCheck, UserX, Clock
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -30,6 +30,59 @@ export default function AlumniProfile() {
   const [alumni, setAlumni] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const currentUserId = JSON.parse(localStorage.getItem("user") || "{}").User_ID;
+
+  const handleConnect = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/connections/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ receiverId: alumni.User_ID })
+      });
+      if (res.ok) {
+        setAlumni((prev) => ({
+          ...prev,
+          connectionStatus: "Pending",
+          connectionSenderID: currentUserId
+        }));
+      } else {
+        const err = await res.json();
+        console.error(err.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRespond = async (status) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/connections/${alumni.connectionId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        setAlumni((prev) => ({
+          ...prev,
+          connectionStatus: status
+        }));
+      } else {
+        const err = await res.json();
+        console.error(err.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -121,16 +174,18 @@ export default function AlumniProfile() {
             <div className="text-center sm:text-left flex-1">
               <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
                 <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white text-xs font-medium px-3 py-1.5 rounded-full border border-white/20">
-                  <Sparkles className="w-3.5 h-3.5" /> Alumni
+                  <Sparkles className="w-3.5 h-3.5" /> {alumni.User_Type_ID === 2 ? "Student" : "Alumni"}
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
                 {fullName || "Unknown Alumni"}
               </h1>
               <p className="mt-2 text-indigo-200 text-sm sm:text-base">
-                {alumni.Job_Title && alumni.Company_Name
-                  ? `${alumni.Job_Title} at ${alumni.Company_Name}`
-                  : alumni.Job_Title || alumni.Company_Name || "Alumni Member"}
+                {alumni.User_Type_ID === 2
+                  ? `${alumni.Course || "Student"} — Current Year ${alumni.Current_Year || "N/A"}`
+                  : (alumni.Job_Title && alumni.Company_Name
+                    ? `${alumni.Job_Title} at ${alumni.Company_Name}`
+                    : alumni.Job_Title || alumni.Company_Name || "Alumni Member")}
               </p>
 
               {/* Tags */}
@@ -154,11 +209,69 @@ export default function AlumniProfile() {
             </div>
 
             {/* Connect button */}
-            <div className="flex gap-3">
-              <button className="inline-flex items-center gap-2 bg-white text-indigo-700 px-6 py-3 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:bg-indigo-50 transition-all">
-                <UserPlus className="w-4 h-4" /> Connect
-              </button>
-            </div>
+            {alumni.User_ID !== currentUserId && (
+              <div className="flex gap-3">
+                {(() => {
+                  const status = alumni.connectionStatus;
+                  const isSender = alumni.connectionSenderID === currentUserId;
+
+                  if (status === "Accepted") {
+                    return (
+                      <button
+                        disabled
+                        className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 px-6 py-3 rounded-xl font-semibold text-sm cursor-not-allowed"
+                      >
+                        <UserCheck className="w-4 h-4" />
+                        Connected
+                      </button>
+                    );
+                  }
+
+                  if (status === "Pending") {
+                    if (isSender) {
+                      return (
+                        <button
+                          disabled
+                          className="inline-flex items-center gap-2 bg-white/10 text-white/70 border border-white/20 px-6 py-3 rounded-xl font-semibold text-sm cursor-not-allowed"
+                        >
+                          <Clock className="w-4 h-4 animate-pulse" />
+                          Pending Request
+                        </button>
+                      );
+                    } else {
+                      return (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleRespond("Accepted")}
+                            className="inline-flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600 px-5 py-3 rounded-xl font-semibold text-sm shadow-lg transition-all active:scale-[0.98]"
+                          >
+                            <UserCheck className="w-4 h-4" />
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleRespond("Rejected")}
+                            className="inline-flex items-center gap-2 bg-red-500/20 text-red-200 hover:bg-red-500/30 border border-red-500/30 px-5 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.98]"
+                          >
+                            <UserX className="w-4 h-4" />
+                            Decline
+                          </button>
+                        </div>
+                      );
+                    }
+                  }
+
+                  return (
+                    <button
+                      onClick={handleConnect}
+                      className="inline-flex items-center gap-2 bg-white text-indigo-700 px-6 py-3 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:bg-indigo-50 transition-all active:scale-[0.98]"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Connect
+                    </button>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -181,27 +294,50 @@ export default function AlumniProfile() {
               </div>
             )}
 
-            {/* Professional details */}
+            {/* Professional / Academic details */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <Briefcase className="w-4 h-4 text-purple-600" />
+                  {alumni.User_Type_ID === 2 ? (
+                    <GraduationCap className="w-4 h-4 text-purple-600" />
+                  ) : (
+                    <Briefcase className="w-4 h-4 text-purple-600" />
+                  )}
                 </div>
-                Professional Details
+                {alumni.User_Type_ID === 2 ? "Academic & Personal Details" : "Professional Details"}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <InfoItem
-                  icon={Briefcase}
-                  label="Job Title"
-                  value={alumni.Job_Title}
-                  color="bg-indigo-100 text-indigo-600"
-                />
-                <InfoItem
-                  icon={Building2}
-                  label="Company"
-                  value={alumni.Company_Name}
-                  color="bg-purple-100 text-purple-600"
-                />
+                {alumni.User_Type_ID === 2 ? (
+                  <>
+                    <InfoItem
+                      icon={Award}
+                      label="Scholar ID"
+                      value={alumni.Scholar_No}
+                      color="bg-indigo-100 text-indigo-600"
+                    />
+                    <InfoItem
+                      icon={GraduationCap}
+                      label="Current Year"
+                      value={alumni.Current_Year ? `Year ${alumni.Current_Year}` : null}
+                      color="bg-purple-100 text-purple-600"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <InfoItem
+                      icon={Briefcase}
+                      label="Job Title"
+                      value={alumni.Job_Title}
+                      color="bg-indigo-100 text-indigo-600"
+                    />
+                    <InfoItem
+                      icon={Building2}
+                      label="Company"
+                      value={alumni.Company_Name}
+                      color="bg-purple-100 text-purple-600"
+                    />
+                  </>
+                )}
                 <InfoItem
                   icon={MapPin}
                   label="Current City"
@@ -268,17 +404,90 @@ export default function AlumniProfile() {
               </div>
             </div>
 
-            {/* Quick actions */}
-            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
-              <h3 className="text-lg font-bold mb-2 relative">Want to connect?</h3>
-              <p className="text-sm text-indigo-100/80 leading-relaxed mb-4 relative">
-                Send a connection request to {alumni.User_Fname || "this alumni"} and start building your professional network.
-              </p>
-              <button className="w-full inline-flex items-center justify-center gap-2 bg-white text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:bg-indigo-50 transition-all relative">
-                <UserPlus className="w-4 h-4" /> Send Request
-              </button>
-            </div>
+            {/* Quick actions (only show if not self) */}
+            {alumni.User_ID !== currentUserId && (
+              <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+                {(() => {
+                  const status = alumni.connectionStatus;
+                  const isSender = alumni.connectionSenderID === currentUserId;
+
+                  if (status === "Accepted") {
+                    return (
+                      <>
+                        <h3 className="text-lg font-bold mb-2 relative">You are connected!</h3>
+                        <p className="text-sm text-indigo-100/80 leading-relaxed mb-4 relative">
+                          You are now connected with {alumni.User_Fname || "this user"}. Go to your connections to start messaging.
+                        </p>
+                        <button
+                          onClick={() => navigate("/connections")}
+                          className="w-full inline-flex items-center justify-center gap-2 bg-white text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:bg-indigo-50 transition-all relative"
+                        >
+                          <Mail className="w-4 h-4" /> Message User
+                        </button>
+                      </>
+                    );
+                  }
+
+                  if (status === "Pending") {
+                    if (isSender) {
+                      return (
+                        <>
+                          <h3 className="text-lg font-bold mb-2 relative">Connection Pending</h3>
+                          <p className="text-sm text-indigo-100/80 leading-relaxed mb-4 relative">
+                            Your request is pending review. You'll be able to send messages once they accept.
+                          </p>
+                          <button
+                            disabled
+                            className="w-full inline-flex items-center justify-center gap-2 bg-white/20 text-white/80 px-5 py-2.5 rounded-xl font-semibold text-sm cursor-not-allowed relative border border-white/10"
+                          >
+                            <Clock className="w-4 h-4 animate-pulse" /> Pending Request
+                          </button>
+                        </>
+                      );
+                    } else {
+                      return (
+                        <>
+                          <h3 className="text-lg font-bold mb-2 relative">Connection Request</h3>
+                          <p className="text-sm text-indigo-100/80 leading-relaxed mb-4 relative">
+                            {alumni.User_Fname || "This user"} wants to connect with you. Accept to start direct chatting.
+                          </p>
+                          <div className="flex flex-col gap-2 relative">
+                            <button
+                              onClick={() => handleRespond("Accepted")}
+                              className="w-full inline-flex items-center justify-center gap-2 bg-white text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg hover:bg-indigo-50 transition-all"
+                            >
+                              <UserCheck className="w-4 h-4" /> Accept Request
+                            </button>
+                            <button
+                              onClick={() => handleRespond("Rejected")}
+                              className="w-full inline-flex items-center justify-center gap-2 bg-red-500/20 text-red-100 border border-red-500/30 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-red-500/30 transition-all"
+                            >
+                              <UserX className="w-4 h-4" /> Decline Request
+                            </button>
+                          </div>
+                        </>
+                      );
+                    }
+                  }
+
+                  return (
+                    <>
+                      <h3 className="text-lg font-bold mb-2 relative">Want to connect?</h3>
+                      <p className="text-sm text-indigo-100/80 leading-relaxed mb-4 relative">
+                        Send a connection request to {alumni.User_Fname || "this user"} and start building your network.
+                      </p>
+                      <button
+                        onClick={handleConnect}
+                        className="w-full inline-flex items-center justify-center gap-2 bg-white text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:bg-indigo-50 transition-all relative"
+                      >
+                        <UserPlus className="w-4 h-4" /> Send Request
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         </div>
       </section>

@@ -21,6 +21,8 @@ const upload = multer({ storage });
 
 
 router.get("/profile", verifyToken, profileController.getUserProfile);
+router.get("/notifications", verifyToken, profileController.getUserNotifications);
+router.put("/update-profile", verifyToken, profileController.updateProfile);
 router.put("/update-settings", verifyToken, profileController.updateUserSettings);
 router.put("/change-password", verifyToken, profileController.changePassword);
 router.post(

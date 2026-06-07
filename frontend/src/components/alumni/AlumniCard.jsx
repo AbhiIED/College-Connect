@@ -1,14 +1,14 @@
 import React from "react";
 import {
   UserPlus, MapPin, Briefcase, Building2, GraduationCap,
-  ArrowRight, BookOpen
+  ArrowRight, BookOpen, UserCheck, UserX, Clock
 } from "lucide-react";
 
 /**
  * Professional alumni directory card with a modern design.
  * Matches the indigo-based theme of the Homepage.
  */
-export default function AlumniCard({ alumni, onClick }) {
+export default function AlumniCard({ alumni, currentUserId, onConnect, onRespond, onClick }) {
   const fullName = `${alumni.User_Fname || ""} ${alumni.User_Lname || ""}`.trim();
   const initials = `${(alumni.User_Fname || "?")[0]}${(alumni.User_Lname || "?")[0]}`.toUpperCase();
 
@@ -106,17 +106,76 @@ export default function AlumniCard({ alumni, onClick }) {
           )}
         </div>
 
-        {/* Connect button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            // Connect action — can be wired to backend
-          }}
-          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow-md active:scale-[0.98]"
-        >
-          <UserPlus className="w-4 h-4" />
-          Connect
-        </button>
+        {/* Connect button states */}
+        {alumni.User_ID !== currentUserId && (() => {
+          const status = alumni.connectionStatus;
+          const isSender = alumni.connectionSenderID === currentUserId;
+
+          if (status === "Accepted") {
+            return (
+              <button
+                disabled
+                className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100"
+              >
+                <UserCheck className="w-4 h-4" />
+                Connected
+              </button>
+            );
+          }
+
+          if (status === "Pending") {
+            if (isSender) {
+              return (
+                <button
+                  disabled
+                  className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-gray-50 text-gray-500 border border-gray-150 cursor-not-allowed"
+                >
+                  <Clock className="w-4 h-4 animate-pulse" />
+                  Pending Request
+                </button>
+              );
+            } else {
+              return (
+                <div className="mt-4 flex gap-2 w-full">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRespond(alumni.connectionId, "Accepted");
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    Accept
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRespond(alumni.connectionId, "Rejected");
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-red-50 text-red-600 hover:bg-red-100 transition"
+                  >
+                    <UserX className="w-4 h-4" />
+                    Decline
+                  </button>
+                </div>
+              );
+            }
+          }
+
+          // Default "Connect" button
+          return (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onConnect(alumni.User_ID);
+              }}
+              className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow-md active:scale-[0.98]"
+            >
+              <UserPlus className="w-4 h-4" />
+              Connect
+            </button>
+          );
+        })()}
       </div>
     </div>
   );
