@@ -110,6 +110,21 @@ export default function ManageAccount() {
       })
       .catch(() => showToast("Failed to load profile", "error"))
       .finally(() => setLoading(false));
+
+    // Also fetch and apply saved privacy/notification settings
+    fetch(`${API}/api/user/settings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) return;
+        if (data.profileVisibility) setProfileType(data.profileVisibility);
+        if (data.settings) setSettings(data.settings);
+        if (typeof data.notification === "boolean") setNotification(data.notification);
+        if (typeof data.connectRequests === "boolean") setConnectRequests(data.connectRequests);
+        if (typeof data.protection === "boolean") setProtection(data.protection);
+      })
+      .catch(() => {}); // Non-critical, silently fail
   }, [navigate]);
 
   // Upload profile pic

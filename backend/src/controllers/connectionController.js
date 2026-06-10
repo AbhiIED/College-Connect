@@ -127,3 +127,26 @@ exports.getConnectionStatus = async (req, res) => {
     res.status(500).json({ error: "Failed to check status" });
   }
 };
+
+// Remove / disconnect an accepted connection
+exports.removeConnection = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { connectionId } = req.params;
+
+    const [result] = await pool.query(
+      `DELETE FROM User_Connection 
+       WHERE Connection_ID = ? AND (Sender_ID = ? OR Receiver_ID = ?)`,
+      [connectionId, userId, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Connection not found or not authorized" });
+    }
+
+    res.json({ success: true, message: "Connection removed" });
+  } catch (err) {
+    console.error("❌ Error removing connection:", err);
+    res.status(500).json({ error: "Failed to remove connection" });
+  }
+};

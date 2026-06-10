@@ -2,6 +2,7 @@ const db = require("../config/db");
 
 // Get all posts
 exports.getAllPosts = async (req, res) => {
+  const userId = req.user.id;
   try {
     const [posts] = await db.query(`
       SELECT 
@@ -17,13 +18,14 @@ exports.getAllPosts = async (req, res) => {
         u.Profile_Pic AS User_Image,
         COALESCE(a.Graduation_Year, s.Graduation_Year) AS Graduation_Year,
         COALESCE(a.Course, s.Course) AS Course,
-        COALESCE(a.Department, s.Department) AS Department
+        COALESCE(a.Department, s.Department) AS Department,
+        EXISTS(SELECT 1 FROM Post_Like pl WHERE pl.Post_ID = p.Post_ID AND pl.User_ID = ?) AS HasLiked
       FROM Post p
       JOIN User_Table u ON p.User_ID = u.User_ID
       LEFT JOIN Alumni_Table a ON u.User_ID = a.User_ID
       LEFT JOIN Student_Table s ON u.User_ID = s.User_ID
       ORDER BY p.Created_At DESC
-    `);
+    `, [userId]);
 
     res.json(posts);
   } catch (err) {
@@ -41,6 +43,7 @@ exports.getComments = async (req, res) => {
       `
       SELECT 
         c.Comment_ID,
+        c.User_ID,
         c.Comment,
         c.Comment_Date,
         u.User_Fname,
@@ -138,9 +141,49 @@ exports.toggleLike = async (req, res) => {
 // Delete a post
 exports.deletePost = async (req, res) => {
   const { postId } = req.params;
+  const userId = Number(req.user.id);
+  const userRole = Number(req.user.role); // 3 is Admin
 
   try {
+    // Check if post exists and get its author
+    const [posts] = await db.query("SELECT User_ID, Image_URL FROM Post WHERE Post_ID = ?", [postId]);
+    if (posts.length === 0) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+
+    const post = posts[0];
+    const postAuthorId = Number(post.User_ID);
+
+    // Check if requester is the author or an admin
+    if (postAuthorId !== userId && userRole !== 3) {
+      return res.status(403).json({ success: false, message: "Unauthorized to delete this post" });
+    }
+
+    // Delete image file from disk if it exists
+    if (post.Image_URL) {
+      try {
+        const fs = require("fs");
+        const path = require("path");
+        let filename = null;
+        if (post.Image_URL.includes("/uploads/post_images/")) {
+          const parts = post.Image_URL.split("/uploads/post_images/");
+          filename = parts[parts.length - 1];
+        }
+        if (filename) {
+          const imagePath = path.join(__dirname, "../uploads/post_images", filename);
+          if (fs.existsSync(imagePath)) {
+            fs.unlinkSync(imagePath);
+          }
+        }
+      } catch (fileErr) {
+        console.error("Error deleting post image file from disk:", fileErr);
+      }
+    }
+
+    // Delete comments and likes first (in case CASCADE is not fully configured, though it is)
     await db.query("DELETE FROM Post_Comment WHERE Post_ID = ?", [postId]);
+    await db.query("DELETE FROM Post_Like WHERE Post_ID = ?", [postId]);
+
     const [result] = await db.query("DELETE FROM Post WHERE Post_ID = ?", [postId]);
 
     if (result.affectedRows === 0) {
@@ -151,6 +194,73 @@ exports.deletePost = async (req, res) => {
   } catch (err) {
     console.error("Error deleting post:", err);
     res.status(500).json({ success: false, message: "Failed to delete post" });
+  }
+};
+
+// Delete a comment
+exports.deleteComment = async (req, res) => {
+  const { postId, commentId } = req.params;
+  const userId = Number(req.user.id);
+  const userRole = Number(req.user.role);
+
+  try {
+    // Check if comment exists and get its author
+    const [commentRows] = await db.query(
+      "SELECT User_ID FROM Post_Comment WHERE Comment_ID = ? AND Post_ID = ?",
+      [commentId, postId]
+    );
+    if (commentRows.length === 0) {
+      return res.status(404).json({ success: false, message: "Comment not found" });
+    }
+
+    const commentAuthorId = Number(commentRows[0].User_ID);
+
+    // Also check if the user is the post author (post authors can delete any comment on their post)
+    const [postRows] = await db.query("SELECT User_ID FROM Post WHERE Post_ID = ?", [postId]);
+    const postAuthorId = postRows.length > 0 ? Number(postRows[0].User_ID) : null;
+
+    // Allow: comment author, post author, or admin
+    if (commentAuthorId !== userId && postAuthorId !== userId && userRole !== 3) {
+      return res.status(403).json({ success: false, message: "Unauthorized to delete this comment" });
+    }
+
+    await db.query("DELETE FROM Post_Comment WHERE Comment_ID = ?", [commentId]);
+    await db.query(
+      "UPDATE Post SET Comment_Count = GREATEST(Comment_Count - 1, 0) WHERE Post_ID = ?",
+      [postId]
+    );
+
+    res.json({ success: true, message: "Comment deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting comment:", err);
+    res.status(500).json({ success: false, message: "Failed to delete comment" });
+  }
+};
+
+// Edit a post (author only)
+exports.editPost = async (req, res) => {
+  const { postId } = req.params;
+  const userId = Number(req.user.id);
+  const { content } = req.body;
+
+  if (!content || !content.trim()) {
+    return res.status(400).json({ success: false, message: "Content cannot be empty" });
+  }
+
+  try {
+    const [postRows] = await db.query("SELECT User_ID FROM Post WHERE Post_ID = ?", [postId]);
+    if (postRows.length === 0) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+    if (Number(postRows[0].User_ID) !== userId) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    await db.query("UPDATE Post SET Content = ? WHERE Post_ID = ?", [content.trim(), postId]);
+    res.json({ success: true, message: "Post updated", content: content.trim() });
+  } catch (err) {
+    console.error("Error editing post:", err);
+    res.status(500).json({ success: false, message: "Failed to edit post" });
   }
 };
 
