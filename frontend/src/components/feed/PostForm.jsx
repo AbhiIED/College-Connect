@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Image, X, Sparkles, Upload, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function PostForm() {
+  const navigate = useNavigate();
   const [content, setContent] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState("");
@@ -85,6 +86,9 @@ export default function PostForm() {
         setContent("");
         setImageFile(null);
         setPreview("");
+        setTimeout(() => {
+          navigate("/feed");
+        }, 1000);
       } else {
         setStatus("error");
       }
@@ -98,7 +102,7 @@ export default function PostForm() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30">
 
       {/* ── HERO BANNER ── */}
-      <section className="relative pt-20 overflow-hidden">
+      <section className="relative pt-8 pb-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800" />
         <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-400/10 rounded-full blur-3xl" />
@@ -109,7 +113,7 @@ export default function PostForm() {
               "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
           }}
         />
-        <div className="relative max-w-5xl mx-auto px-6 py-12 text-center">
+        <div className="relative max-w-5xl mx-auto px-6 py-8 text-center">
           <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white text-xs font-medium px-3 py-1.5 rounded-full border border-white/20 mb-4">
             <Sparkles className="w-3.5 h-3.5" /> Share Your Story
           </span>

@@ -150,14 +150,14 @@ export default function Directory() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30 -mt-16">
 
       {/* ── HERO BANNER ── */}
-      <section className="relative pt-20 overflow-hidden">
+      <section className="relative pt-18 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800" />
         {/* Decorative elements */}
         <div className="absolute top-10 left-10 w-72 h-72 bg-white/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }} />
 
-        <div className="relative max-w-7xl mx-auto px-6 lg:px-8 py-12 lg:py-16">
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-8 py-6 lg:py-8">
           <div className="max-w-3xl">
             <div className="flex items-center gap-2 mb-4">
               <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white text-xs font-medium px-3 py-1.5 rounded-full border border-white/20">
@@ -342,11 +342,24 @@ export default function Directory() {
           </p>
         </div>
 
-        {/* Loading state */}
+        {/* Skeleton loaders */}
         {loading && (
-          <div className="flex flex-col items-center justify-center py-24">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-            <p className="text-gray-500 font-medium">Loading alumni directory...</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-pulse">
+                <div className="h-24 bg-gradient-to-br from-slate-200 to-slate-300" />
+                <div className="px-5 pt-3 pb-5 space-y-3">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-200 -mt-10 mb-2" />
+                  <div className="h-4 bg-slate-200 rounded-full w-3/4" />
+                  <div className="h-3 bg-slate-100 rounded-full w-1/2" />
+                  <div className="border-t border-gray-100 pt-3 space-y-2">
+                    <div className="h-3 bg-slate-100 rounded-full w-2/3" />
+                    <div className="h-3 bg-slate-100 rounded-full w-1/2" />
+                  </div>
+                  <div className="h-9 bg-indigo-100 rounded-xl w-full mt-2" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

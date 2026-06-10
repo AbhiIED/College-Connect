@@ -64,6 +64,7 @@ export default function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [showAllNotifs, setShowAllNotifs] = useState(false);
 
   /* ── refs for click-outside ── */
   const feedRef = useRef(null);
@@ -288,7 +289,7 @@ export default function Navbar() {
                           No new notifications
                         </div>
                       ) : (
-                        notifications.map((n) => (
+                        (showAllNotifs ? notifications : notifications.slice(0, 5)).map((n) => (
                           <div
                             key={n.id}
                             onClick={() => {
@@ -306,6 +307,16 @@ export default function Navbar() {
                         ))
                       )}
                     </div>
+                    {notifications.length > 5 && (
+                      <div className="px-5 py-2 border-t border-gray-100">
+                        <button
+                          onClick={() => setShowAllNotifs((v) => !v)}
+                          className="w-full text-center text-xs font-semibold text-indigo-500 hover:text-indigo-700 transition-colors py-1"
+                        >
+                          {showAllNotifs ? "Show less ↑" : `Show ${notifications.length - 5} more ↓`}
+                        </button>
+                      </div>
+                    )}
                     <div className="px-5 py-3 border-t border-gray-100">
                       <button
                         onClick={() => {
@@ -329,8 +340,16 @@ export default function Navbar() {
                 className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-indigo-50/60 transition-all duration-200"
                 id="nav-profile-toggle"
               >
-                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-indigo-200/50">
-                  {user.User_Fname ? user.User_Fname[0].toUpperCase() : <User className="h-4 w-4" />}
+                <div className="h-8 w-8 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-indigo-200/50 flex-shrink-0">
+                  {user.Profile_Pic ? (
+                    <img
+                      src={user.Profile_Pic.startsWith("http") ? user.Profile_Pic : `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}${user.Profile_Pic}`}
+                      alt="profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user.User_Fname ? user.User_Fname[0].toUpperCase() : <User className="h-4 w-4" />
+                  )}
                 </div>
                 <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} />
               </button>

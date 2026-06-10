@@ -62,8 +62,64 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Something went wrong on the server." });
 });
 
-// ── Start Server ────────────────────────────────────────
+// ── Start Server & Configure Socket.io ───────────────────
+const http = require("http");
+const { Server } = require("socket.io");
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    credentials: true
+  }
+});
+
+// Map of User_ID -> Socket_ID for active connections
+const activeUsers = new Map();
+
+io.on("connection", (socket) => {
+  console.log(`🔌 Client connected to WebSocket: ${socket.id}`);
+
+  // Register user with their active socket ID
+  socket.on("register_user", (userId) => {
+    if (userId) {
+      activeUsers.set(String(userId), socket.id);
+      console.log(`👤 User ${userId} registered with socket ${socket.id}`);
+    }
+  });
+
+  // Relay message directly in memory to target online user
+  socket.on("send_message", ({ senderId, receiverId, text }) => {
+    if (!receiverId || !text || !text.trim()) return;
+
+    const receiverSocketId = activeUsers.get(String(receiverId));
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("receive_message", {
+        Sender_ID: senderId,
+        Receiver_ID: receiverId,
+        Message: text,
+        Sent_At: new Date()
+      });
+      console.log(`📨 Message relayed from User ${senderId} to User ${receiverId} (socket: ${receiverSocketId})`);
+    } else {
+      console.log(`📨 Message to offline User ${receiverId} discarded (no DB persistence)`);
+    }
+  });
+
+  // Unregister user on disconnect
+  socket.on("disconnect", () => {
+    for (let [userId, socketId] of activeUsers.entries()) {
+      if (socketId === socket.id) {
+        activeUsers.delete(userId);
+        console.log(`👤 User ${userId} disconnected.`);
+        break;
+      }
+    }
+  });
+});
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });

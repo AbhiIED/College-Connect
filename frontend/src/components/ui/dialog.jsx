@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 const sizeClasses = {
@@ -11,7 +12,9 @@ const sizeClasses = {
 };
 
 export function Dialog({ open, onOpenChange, children, size = "full" }) {
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -34,7 +37,8 @@ export function Dialog({ open, onOpenChange, children, size = "full" }) {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 

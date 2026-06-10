@@ -25,6 +25,14 @@ export default function Jobs() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [showDrawer, setShowDrawer] = useState(false);
   const [jobForm, setJobForm] = useState({ title: "", company: "", location: "", description: "", applyLink: "", applyFrom: "", applyTo: "" });
+  const [toast, setToast] = useState(null);
+
+  const token = localStorage.getItem("token");
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const sidebarRef = useRef(null);
   const detailRef = useRef(null);
@@ -110,15 +118,27 @@ export default function Jobs() {
   }, [searchQuery, activeFilter, jobs]);
 
   const handleSubmitJob = async () => {
-    if (!jobForm.title || !jobForm.company || !jobForm.location || !jobForm.description || !jobForm.applyFrom || !jobForm.applyTo) { alert("Please fill all required fields"); return; }
+    if (!jobForm.title || !jobForm.company || !jobForm.location || !jobForm.description || !jobForm.applyFrom || !jobForm.applyTo) {
+      showToast("Please fill all required fields", "error");
+      return;
+    }
     try {
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-      const res = await fetch(`${API_BASE_URL}/jobs-api`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(jobForm) });
+      const res = await fetch(`${API_BASE_URL}/jobs-api`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(jobForm),
+      });
       if (!res.ok) throw new Error("Failed");
-      alert("Job posted successfully!");
+      showToast("Job posted successfully! It will appear after review.", "success");
       setShowDrawer(false);
       setJobForm({ title: "", company: "", location: "", description: "", applyLink: "", applyFrom: "", applyTo: "" });
-    } catch { alert("Error posting job"); }
+    } catch {
+      showToast("Error posting job. Please try again.", "error");
+    }
   };
 
   const getTypeBadge = (type) => {
@@ -139,6 +159,14 @@ export default function Jobs() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-b from-slate-50 via-white to-indigo-50/20">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-20 right-4 z-[200] px-4 py-3 rounded-xl shadow-xl text-white text-sm font-semibold flex items-center gap-2 transition-all ${
+          toast.type === "success" ? "bg-emerald-600" : "bg-red-500"
+        }`}>
+          {toast.type === "success" ? "✓" : "✕"} {toast.message}
+        </div>
+      )}
       {/* Sleek Page Header */}
       <header className="bg-white border-b border-slate-200/80 px-6 lg:px-8 py-5 flex-shrink-0">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -374,7 +402,11 @@ export default function Jobs() {
                       <ExternalLink className="w-4 h-4" /> Apply Directly
                     </a>
                     {selectedJob.referral && (
-                      <button className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-xs hover:bg-emerald-50/80 active:bg-emerald-50 transition-all">
+                      <button
+                        onClick={() => window.open(`/directory`, "_self")}
+                        className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-emerald-200 text-emerald-700 font-bold text-xs hover:bg-emerald-50/80 active:bg-emerald-50 transition-all"
+                        title="Find the poster in the alumni directory to request a referral"
+                      >
                         <Users className="w-4 h-4 text-emerald-600" /> Request Referral
                       </button>
                     )}

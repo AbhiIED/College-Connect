@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import {
   MessageCircle, Search, X, Users, Sparkles, Loader2,
   UserCheck, UserX, Clock, Briefcase, Building2, GraduationCap,
-  Send, ChevronDown, Filter, ArrowRight
+  Send, ChevronDown, Filter, ArrowRight, UserMinus, AlertTriangle
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -21,7 +22,7 @@ const getInitials = (fname, lname) =>
   `${(fname || "?")[0]}${(lname || "?")[0]}`.toUpperCase();
 
 /* ═══════════════════════════ ConnectionCard ═══════════════════════════ */
-function ConnectionCard({ conn, onChat, onViewProfile }) {
+function ConnectionCard({ conn, onChat, onViewProfile, onRemove }) {
   const name = `${conn.User_Fname} ${conn.User_Lname}`;
   const gradient = getGradient(conn.Connected_User_ID);
 
@@ -33,12 +34,21 @@ function ConnectionCard({ conn, onChat, onViewProfile }) {
           backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='1' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E\")"
         }} />
         <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-6 translate-x-6" />
-        {/* View profile */}
-        <button onClick={() => onViewProfile(conn)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1 rounded-full border border-white/30">
-            Profile <ArrowRight className="w-3 h-3" />
-          </span>
-        </button>
+        {/* Actions */}
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1.5">
+          <button onClick={() => onViewProfile(conn)} title="View profile">
+            <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1 rounded-full border border-white/30">
+              Profile <ArrowRight className="w-3 h-3" />
+            </span>
+          </button>
+          <button
+            onClick={() => onRemove(conn)}
+            title="Remove connection"
+            className="inline-flex items-center gap-1 bg-red-500/80 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-full border border-red-300/30 hover:bg-red-600/90 transition"
+          >
+            <UserMinus className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
       {/* Avatar */}
@@ -147,11 +157,10 @@ function PendingRequestCard({ req, onRespond }) {
 function ChatWindow({ user, onClose }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(true);
   const name = `${user.User_Fname} ${user.User_Lname}`;
   const currentUserId = JSON.parse(localStorage.getItem("user") || "{}").User_ID;
   const partnerId = user.Connected_User_ID || user.User_ID || user.Sender_ID;
-
+  const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -159,52 +168,52 @@ function ChatWindow({ user, onClose }) {
   };
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const res = await fetch(`${API}/chat/${partnerId}`, {
-          headers: { Authorization: `Bearer ${getToken()}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setMessages(data);
-        }
-      } catch (err) {
-        console.error("Error fetching messages:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Establish socket connection to backend URL
+    socketRef.current = io(API);
 
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
-    return () => clearInterval(interval);
-  }, [partnerId]);
+    // Register active user session
+    socketRef.current.emit("register_user", currentUserId);
+
+    // Register listener for incoming real-time messages
+    socketRef.current.on("receive_message", (msg) => {
+      if (msg.Sender_ID === partnerId) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    });
+
+    // Cleanup connection
+    return () => {
+      socketRef.current.disconnect();
+    };
+  }, [partnerId, currentUserId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async () => {
+  const sendMessage = () => {
     if (!input.trim()) return;
-    try {
-      const res = await fetch(`${API}/chat/send`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`
-        },
-        body: JSON.stringify({ receiverId: partnerId, message: input })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setMessages((prev) => [...prev, data.message]);
-          setInput("");
-        }
-      }
-    } catch (err) {
-      console.error("Error sending message:", err);
-    }
+
+    const msgPayload = {
+      senderId: currentUserId,
+      receiverId: partnerId,
+      text: input
+    };
+
+    // Broadcast message via WebSockets
+    socketRef.current.emit("send_message", msgPayload);
+
+    // Instantly push to screen locally
+    const localMsg = {
+      Message_ID: Math.random(),
+      Sender_ID: currentUserId,
+      Receiver_ID: partnerId,
+      Message: input,
+      Sent_At: new Date()
+    };
+
+    setMessages((prev) => [...prev, localMsg]);
+    setInput("");
   };
 
   return createPortal(
@@ -222,11 +231,7 @@ function ChatWindow({ user, onClose }) {
       </div>
 
       <div className="flex-1 p-4 overflow-y-auto text-sm space-y-2">
-        {loading && messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
-          </div>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="text-center py-8">
             <MessageCircle className="w-8 h-8 text-gray-200 mx-auto mb-2" />
             <p className="text-gray-400 text-xs">Start a conversation with {user.User_Fname}</p>
@@ -272,6 +277,7 @@ export default function Connections() {
   const [search, setSearch] = useState("");
   const [chatUser, setChatUser] = useState(null);
   const [activeTab, setActiveTab] = useState("connections");
+  const [confirmRemove, setConfirmRemove] = useState(null); // connection object
 
   useEffect(() => {
     const fetchData = async () => {
@@ -320,6 +326,20 @@ export default function Connections() {
     } catch (err) { console.error(err); }
   };
 
+  const handleRemoveConnection = async () => {
+    if (!confirmRemove) return;
+    try {
+      const res = await fetch(`${API}/connections/${confirmRemove.Connection_ID}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) {
+        setConnections((prev) => prev.filter((c) => c.Connection_ID !== confirmRemove.Connection_ID));
+      }
+    } catch (err) { console.error(err); }
+    finally { setConfirmRemove(null); }
+  };
+
   const filtered = connections.filter((c) => {
     const name = `${c.User_Fname} ${c.User_Lname}`.toLowerCase();
     return !search.trim() || name.includes(search.toLowerCase()) ||
@@ -352,13 +372,13 @@ export default function Connections() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30 -mt-16">
       {/* ── Hero Banner ── */}
-      <section className="relative pt-20 overflow-hidden">
+      <section className="relative pt-18 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800" />
         <div className="absolute top-10 left-10 w-72 h-72 bg-white/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }} />
 
-        <div className="relative max-w-7xl mx-auto px-6 lg:px-8 py-12 lg:py-16">
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-8 py-6 lg:py-8">
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white text-xs font-medium px-3 py-1.5 rounded-full border border-white/20 mb-4">
               <Sparkles className="w-3.5 h-3.5" /> Your Network
@@ -459,6 +479,7 @@ export default function Connections() {
                 {filtered.map((conn) => (
                   <ConnectionCard key={conn.Connection_ID} conn={conn}
                     onChat={(c) => setChatUser(c)}
+                    onRemove={(c) => setConfirmRemove(c)}
                     onViewProfile={(c) => navigate(`/alumni/${c.Connected_User_ID}`)} />
                 ))}
               </div>
@@ -493,6 +514,44 @@ export default function Connections() {
       </section>
 
       {chatUser && <ChatWindow user={chatUser} onClose={() => setChatUser(null)} />}
+
+      {/* Remove Connection Confirmation */}
+      {confirmRemove && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setConfirmRemove(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">Remove Connection</h2>
+            </div>
+            <p className="text-sm text-gray-500 mb-6">
+              Are you sure you want to remove <span className="font-semibold text-gray-800">{confirmRemove.User_Fname} {confirmRemove.User_Lname}</span> from your connections? You can reconnect later.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmRemove(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemoveConnection}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition shadow-md"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

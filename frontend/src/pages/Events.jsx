@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Calendar, MapPin, Clock, Users, ExternalLink, Sparkles,
-  Monitor, MessageSquare, Building2, Wrench, Code, Filter, Tag
+  Monitor, MessageSquare, Building2, Wrench, Code, Filter, Tag, X, CheckCircle2, AlertCircle
 } from "lucide-react";
 import fallbackImage from "../assets/event-image.webp";
 
@@ -36,6 +37,46 @@ export default function EventSection() {
   const [expiredEvents, setExpiredEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [registerModal, setRegisterModal] = useState(null); // selected event
+  const [regForm, setRegForm] = useState({ fullName: "", email: "", phone: "", course: "", graduationYear: "" });
+  const [regStatus, setRegStatus] = useState(null); // null | 'success' | 'duplicate' | 'error'
+  const [regLoading, setRegLoading] = useState(false);
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+  const token = localStorage.getItem("token");
+
+  // Pre-fill form from logged-in user
+  const openRegister = (event) => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    setRegForm({
+      fullName: user.User_Fname ? `${user.User_Fname} ${user.User_Lname || ""}`.trim() : "",
+      email: user.User_Email || "",
+      phone: user.Phone_no || "",
+      course: user.Course || "",
+      graduationYear: user.Graduation_Year || "",
+    });
+    setRegStatus(null);
+    setRegisterModal(event);
+  };
+
+  const handleRegister = async () => {
+    if (!regForm.fullName || !regForm.email) return;
+    setRegLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/events/${registerModal.Event_ID}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(regForm),
+      });
+      if (res.status === 409) { setRegStatus("duplicate"); return; }
+      if (!res.ok) throw new Error();
+      setRegStatus("success");
+    } catch {
+      setRegStatus("error");
+    } finally {
+      setRegLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -64,16 +105,20 @@ export default function EventSection() {
 
   const filtered = activeCategory === "All" ? upcomingEvents : upcomingEvents.filter((e) => e.category === activeCategory);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-          <p className="text-sm font-medium text-gray-500">Loading events…</p>
-        </div>
+
+  /* ── Skeleton event card ── */
+  const EventSkeleton = () => (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-pulse">
+      <div className="h-44 bg-gradient-to-br from-slate-200 to-slate-300" />
+      <div className="p-5 space-y-3">
+        <div className="h-4 bg-slate-200 rounded-full w-3/4" />
+        <div className="h-3 bg-slate-100 rounded-full w-1/2" />
+        <div className="h-3 bg-slate-100 rounded-full w-full" />
+        <div className="h-3 bg-slate-100 rounded-full w-2/3" />
+        <div className="h-10 bg-emerald-100 rounded-xl w-full mt-2" />
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30">
@@ -133,7 +178,11 @@ export default function EventSection() {
       {/* Upcoming Events Grid */}
       <section className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
         <h2 className="text-xl font-bold text-gray-900 mb-6">Upcoming Events</h2>
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((n) => <EventSkeleton key={n} />)}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">No events in this category</p>
@@ -183,8 +232,14 @@ export default function EventSection() {
                     <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">{event.Event_Description}</p>
                     <a href={event.Event_Link || "#"} target="_blank" rel="noopener noreferrer"
                       className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold shadow-md shadow-indigo-200/40 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all">
-                      <ExternalLink className="w-3.5 h-3.5" /> Register Now
+                      <ExternalLink className="w-3.5 h-3.5" /> External Link
                     </a>
+                    <button
+                      onClick={() => openRegister(event)}
+                      className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-md shadow-emerald-200/40 hover:bg-emerald-700 hover:-translate-y-0.5 transition-all"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Register Now
+                    </button>
                   </div>
                 </div>
               );
@@ -216,6 +271,98 @@ export default function EventSection() {
           </div>
         </section>
       )}
+
+      {/* ── Registration Modal ── */}
+      {registerModal && createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            onClick={() => setRegisterModal(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 text-white">
+                <div>
+                  <h2 className="font-bold text-base leading-tight">{registerModal.Event_Name}</h2>
+                  <p className="text-xs text-emerald-100 mt-0.5">
+                    {new Date(registerModal.Event_Date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                  </p>
+                </div>
+                <button onClick={() => setRegisterModal(null)} className="p-1.5 rounded-lg hover:bg-white/20 transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6">
+                {regStatus === "success" ? (
+                  <div className="text-center py-6">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">You're registered!</h3>
+                    <p className="text-sm text-gray-500">We'll send event details to your email.</p>
+                    <button
+                      onClick={() => setRegisterModal(null)}
+                      className="mt-5 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition"
+                    >
+                      Done
+                    </button>
+                  </div>
+                ) : regStatus === "duplicate" ? (
+                  <div className="text-center py-6">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
+                      <AlertCircle className="w-8 h-8 text-amber-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Already registered</h3>
+                    <p className="text-sm text-gray-500">You have already signed up for this event.</p>
+                    <button
+                      onClick={() => setRegisterModal(null)}
+                      className="mt-5 px-6 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition"
+                    >
+                      Got it
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Your registration details</p>
+                    {[
+                      { key: "fullName", label: "Full Name *", ph: "Your full name" },
+                      { key: "email", label: "Email *", ph: "your@email.com" },
+                      { key: "phone", label: "Phone", ph: "Contact number" },
+                      { key: "course", label: "Course / Branch", ph: "e.g. B.Tech CSE" },
+                      { key: "graduationYear", label: "Graduation Year", ph: "e.g. 2025" },
+                    ].map(({ key, label, ph }) => (
+                      <div key={key}>
+                        <label className="text-xs font-semibold text-gray-600 mb-1 block">{label}</label>
+                        <input
+                          type="text"
+                          placeholder={ph}
+                          value={regForm[key]}
+                          onChange={(e) => setRegForm((p) => ({ ...p, [key]: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 bg-gray-50 hover:bg-white transition"
+                        />
+                      </div>
+                    ))}
+                    {regStatus === "error" && (
+                      <p className="text-xs text-red-500 font-medium">Something went wrong. Please try again.</p>
+                    )}
+                    <button
+                      onClick={handleRegister}
+                      disabled={regLoading || !regForm.fullName || !regForm.email}
+                      className="w-full py-3 mt-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-xl font-bold text-sm shadow-md transition"
+                    >
+                      {regLoading ? "Registering…" : "Confirm Registration"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -81,6 +81,38 @@ exports.getUserProfile = async (req, res) => {
   }
 };
 
+exports.getUserSettings = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const [rows] = await pool.query(
+      `SELECT Profile_Visibility, Show_Branch, Show_Batch, Show_Location,
+              Show_Workplace, Show_Experience, Notifications, Connect_Requests, Info_Protection
+       FROM User_Settings WHERE User_ID = ?`,
+      [userId]
+    );
+    if (!rows.length) {
+      return res.json({}); // No settings saved yet — frontend will use defaults
+    }
+    const r = rows[0];
+    res.json({
+      profileVisibility: r.Profile_Visibility || "public",
+      settings: {
+        showBranch: !!r.Show_Branch,
+        showBatch: !!r.Show_Batch,
+        showLocation: !!r.Show_Location,
+        showWorkplace: !!r.Show_Workplace,
+        showExperience: !!r.Show_Experience,
+      },
+      notification: !!r.Notifications,
+      connectRequests: !!r.Connect_Requests,
+      protection: !!r.Info_Protection,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching user settings:", err);
+    res.status(500).json({ error: "Failed to fetch settings" });
+  }
+};
+
 exports.updateUserSettings = async (req, res) => {
   const userId = req.user.id;
   const { profileType, profileSettings, notification, connectRequests, protection, about } = req.body;
