@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Newspaper, ArrowRight, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
+import NewsDetailModal from "./NewsDetailModal";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -49,6 +50,7 @@ const categoryColors = {
 export default function HomeNews() {
   const scrollRef = useRef(null);
   const [news, setNews] = useState([]);
+  const [selectedArticle, setSelectedArticle] = useState(null);
 
   useEffect(() => {
     fetch(`${API}/news?limit=6`)
@@ -117,7 +119,8 @@ export default function HomeNews() {
               return (
                 <article
                   key={item.News_ID}
-                  className="flex-none w-80 snap-start bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all overflow-hidden group/card"
+                  onClick={() => setSelectedArticle(item)}
+                  className="flex-none w-80 snap-start bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all overflow-hidden group/card cursor-pointer hover:-translate-y-0.5 duration-200"
                 >
                   {/* Image */}
                   <div className="relative h-44 overflow-hidden">
@@ -153,6 +156,12 @@ export default function HomeNews() {
           </div>
         </div>
       </div>
+      {selectedArticle && (
+        <NewsDetailModal
+          article={selectedArticle}
+          onClose={() => setSelectedArticle(null)}
+        />
+      )}
     </section>
   );
 }

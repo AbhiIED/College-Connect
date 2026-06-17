@@ -88,7 +88,13 @@ exports.createOrder = async (req, res) => {
     const { amount } = req.body;
 
     if (!razorpay) {
-      return res.status(400).json({ error: "Razorpay is not configured on this server." });
+      console.log("ℹ️ Razorpay is not configured. Creating a simulated order.");
+      return res.json({
+        id: "simulated_order_" + Date.now(),
+        amount: amount * 100,
+        currency: "INR",
+        simulated: true
+      });
     }
 
     const options = {
@@ -109,17 +115,26 @@ exports.createOrder = async (req, res) => {
 exports.verifyPayment = async (req, res) => {
   try {
     const { order_id, payment_id, signature, projectId, amount, message } = req.body;
-    const body = order_id + "|" + payment_id;
+    
+    const isSimulated = order_id && order_id.startsWith("simulated_order_");
 
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
-      .digest("hex");
+    let isVerified = false;
+    if (isSimulated) {
+      isVerified = true;
+    } else {
+      const body = order_id + "|" + payment_id;
+      const expectedSignature = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "")
+        .update(body)
+        .digest("hex");
+      isVerified = expectedSignature === signature;
+    }
 
-    if (expectedSignature === signature) {
+    if (isVerified) {
       // Record the transaction
       const [txResult] = await pool.query(
-        `INSERT INTO transactions (Payment_Mode, Payment_Status, Payment_Time) VALUES ('Razorpay', 'Success', NOW())`
+        `INSERT INTO transactions (Payment_Mode, Payment_Status, Payment_Time) VALUES (?, 'Success', NOW())`,
+        [isSimulated ? 'Simulated' : 'Razorpay']
       );
 
       // Record the donation
@@ -135,7 +150,7 @@ exports.verifyPayment = async (req, res) => {
         [amount, projectId]
       );
 
-      res.json({ success: true, message: "Payment verified successfully" });
+      res.json({ success: true, message: isSimulated ? "✅ Simulated payment logged successfully" : "✅ Payment verified successfully" });
     } else {
       res.status(400).json({ success: false, message: "Invalid signature" });
     }
