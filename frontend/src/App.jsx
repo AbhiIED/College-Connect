@@ -19,17 +19,17 @@ import Layout from "./components/layout/Layout";
 import ForgotPassword from "./pages/Forgot-password";
 import OtpVerification from "./pages/OtpVerification";
 import DonationDetails from "./pages/DonationDetails";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import UsersPage from "./pages/admin/UsersPage";
-import JobPage from "./pages/admin/JobsPage";
-import EventsPage from "./pages/admin/EventsPage";
-import PostsPage from "./pages/admin/PostsPage";
-import ProjectsPage from "./pages/admin/ProjectsPage";
-import NewsPage from "./pages/admin/NewsPage";
-import ConnectionsPage from "./pages/admin/ConnectionsPage";
-import SystemSettingsPage from "./pages/admin/SystemSettingsPage";
-import AnalyticsPage from "./pages/admin/AnalyticsPage";
-import NotificationsPage from "./pages/admin/NotificationsPage";
+import AdminDashboard from "./pages/Admin/AdminDashboard";
+import UsersPage from "./pages/Admin/UsersPage";
+import JobPage from "./pages/Admin/JobsPage";
+import EventsPage from "./pages/Admin/EventsPage";
+import PostsPage from "./pages/Admin/PostsPage";
+import ProjectsPage from "./pages/Admin/ProjectsPage";
+import NewsPage from "./pages/Admin/NewsPage";
+import ConnectionsPage from "./pages/Admin/ConnectionsPage";
+import SystemSettingsPage from "./pages/Admin/SystemSettingsPage";
+import AnalyticsPage from "./pages/Admin/AnalyticsPage";
+import NotificationsPage from "./pages/Admin/NotificationsPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 function App() {
