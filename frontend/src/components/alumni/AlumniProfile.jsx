@@ -5,6 +5,7 @@ import {
   BookOpen, Mail, Globe, ArrowLeft, Loader2, Sparkles,
   Code, Award, UserCheck, UserX, Clock
 } from "lucide-react";
+import MentorshipModal from "../mentorship/MentorshipModal";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -30,6 +31,7 @@ export default function AlumniProfile() {
   const [alumni, setAlumni] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showMentorship, setShowMentorship] = useState(false);
 
   const currentUserId = JSON.parse(localStorage.getItem("user") || "{}").User_ID;
 
@@ -217,13 +219,23 @@ export default function AlumniProfile() {
 
                   if (status === "Accepted") {
                     return (
-                      <button
-                        disabled
-                        className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 px-6 py-3 rounded-xl font-semibold text-sm cursor-not-allowed"
-                      >
-                        <UserCheck className="w-4 h-4" />
-                        Connected
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          disabled
+                          className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 px-6 py-3 rounded-xl font-semibold text-sm cursor-not-allowed"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                          Connected
+                        </button>
+                        {alumni.User_Type_ID === 1 && (
+                          <button
+                            onClick={() => setShowMentorship(true)}
+                            className="inline-flex items-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-200 px-6 py-3 rounded-xl font-semibold text-sm shadow-md transition-all active:scale-[0.98]"
+                          >
+                            Book Mentorship
+                          </button>
+                        )}
+                      </div>
                     );
                   }
 
@@ -419,12 +431,22 @@ export default function AlumniProfile() {
                         <p className="text-sm text-indigo-100/80 leading-relaxed mb-4 relative">
                           You are now connected with {alumni.User_Fname || "this user"}. Go to your connections to start messaging.
                         </p>
-                        <button
-                          onClick={() => navigate("/connections")}
-                          className="w-full inline-flex items-center justify-center gap-2 bg-white text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:bg-indigo-50 transition-all relative"
-                        >
-                          <Mail className="w-4 h-4" /> Message User
-                        </button>
+                        <div className="flex flex-col gap-2 relative">
+                          <button
+                            onClick={() => navigate("/connections")}
+                            className="w-full inline-flex items-center justify-center gap-2 bg-white text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:bg-indigo-50 transition-all"
+                          >
+                            <Mail className="w-4 h-4" /> Message User
+                          </button>
+                          {alumni.User_Type_ID === 1 && (
+                            <button
+                              onClick={() => setShowMentorship(true)}
+                              className="w-full inline-flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white border border-indigo-400/50 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all"
+                            >
+                              Request Mentorship Session
+                            </button>
+                          )}
+                        </div>
                       </>
                     );
                   }
@@ -492,6 +514,17 @@ export default function AlumniProfile() {
         </div>
       </section>
 
+      {showMentorship && (
+        <MentorshipModal
+          alumni={{
+            id: alumni.Alumni_ID || alumni.id,
+            name: fullName,
+            jobTitle: alumni.Job_Title || alumni.jobTitle,
+            company: alumni.Company_Name || alumni.companyName
+          }}
+          onClose={() => setShowMentorship(false)}
+        />
+      )}
     </div>
   );
 }

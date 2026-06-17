@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Heart, Users, Target, Sparkles, Loader2, CheckCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const QUICK_AMOUNTS = [100, 500, 1000, 5000];
 
@@ -36,6 +37,8 @@ export default function DonationDetails() {
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(null); // null | 'loading'
+  const [showSimulatedModal, setShowSimulatedModal] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -56,18 +59,43 @@ export default function DonationDetails() {
   }, [id, baseUrl]);
 
   const handlePayment = async () => {
-    if (!amount && !cause?.target) return;
+    const donateAmount = Number(amount) || cause?.target;
+    if (!donateAmount) return;
     setPaymentStatus("loading");
-    try {
-      const resKey = await fetch(`${baseUrl}/donations/get-key`);
-      const { key } = await resKey.json();
+    
+    const token = localStorage.getItem("token");
 
+    try {
+      // 1. Create order
       const resOrder = await fetch(`${baseUrl}/donations/create-order`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: amount || cause.target }),
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: donateAmount }),
       });
+      if (!resOrder.ok) throw new Error("Failed to create order");
       const order = await resOrder.json();
+
+      // 2. Check if simulated order
+      if (order.simulated) {
+        // Trigger simulation flow
+        setTimeout(() => {
+          setShowSimulatedModal({
+            orderId: order.id,
+            amount: donateAmount,
+            projectId: cause.id,
+            title: cause.title
+          });
+          setPaymentStatus(null);
+        }, 800);
+        return;
+      }
+
+      // 3. Regular Razorpay checkout flow
+      const resKey = await fetch(`${baseUrl}/donations/get-key`);
+      const { key } = await resKey.json();
 
       const options = {
         key,
@@ -77,9 +105,41 @@ export default function DonationDetails() {
         description: cause.title,
         image: cause.image,
         order_id: order.id,
-        handler: function () {
-          setPaymentStatus(null);
-          alert("Payment successful! 🎉 Thank you for your contribution.");
+        handler: async function (response) {
+          try {
+            setPaymentStatus("loading");
+            // Call verify payment
+            const resVerify = await fetch(`${baseUrl}/donations/verify-payment`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                order_id: response.razorpay_order_id,
+                payment_id: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+                projectId: cause.id,
+                amount: donateAmount,
+                message: `Donation of ₹${donateAmount} via Razorpay`
+              })
+            });
+            if (resVerify.ok) {
+              // Refetch cause
+              const refetch = await fetch(`${baseUrl}/donations/${id}`);
+              const updated = await refetch.json();
+              setCause(updated);
+              setAmount("");
+              setShowSuccessModal(true);
+            } else {
+              alert("Payment verification failed. Please contact support.");
+            }
+          } catch (err) {
+            console.error("Verification error:", err);
+            alert("An error occurred during verification.");
+          } finally {
+            setPaymentStatus(null);
+          }
         },
         prefill: { name: "Alumni", email: "alumni@example.com" },
         theme: { color: "#e11d48" },
@@ -288,6 +348,119 @@ export default function DonationDetails() {
           </div>
         </div>
       </div>
+
+      {/* Simulated Payment Modal */}
+      <AnimatePresence>
+        {showSimulatedModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 text-center"
+            >
+              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                💳
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Simulated Checkout</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Razorpay credentials are not configured on the server. Do you want to approve this simulated donation of <strong>₹{showSimulatedModal.amount?.toLocaleString()}</strong> to <strong>{showSimulatedModal.title}</strong>?
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSimulatedModal(null)}
+                  className="flex-1 py-3 border border-slate-200 rounded-xl text-slate-500 font-semibold text-sm hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const modalData = showSimulatedModal;
+                    setShowSimulatedModal(null);
+                    setPaymentStatus("loading");
+                    try {
+                      const token = localStorage.getItem("token");
+                      const resVerify = await fetch(`${baseUrl}/donations/verify-payment`, {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                          order_id: modalData.orderId,
+                          payment_id: "simulated_pay_" + Date.now(),
+                          signature: "simulated_signature",
+                          projectId: modalData.projectId,
+                          amount: modalData.amount,
+                          message: `Simulated donation of ₹${modalData.amount}`
+                        })
+                      });
+                      if (resVerify.ok) {
+                        // Refetch
+                        const refetch = await fetch(`${baseUrl}/donations/${id}`);
+                        const updated = await refetch.json();
+                        setCause(updated);
+                        setAmount("");
+                        setShowSuccessModal(true);
+                      } else {
+                        alert("Simulation payment verification failed.");
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    } finally {
+                      setPaymentStatus(null);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm rounded-xl transition shadow-md"
+                >
+                  Pay Simulated
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success Checkout Modal */}
+      <AnimatePresence>
+        {showSuccessModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 text-center"
+            >
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+                🎉
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Thank you!</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Your donation was successfully processed. Thank you so much for your support and for giving back to the community!
+              </p>
+
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition shadow-md"
+              >
+                Done
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

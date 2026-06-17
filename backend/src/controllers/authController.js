@@ -7,48 +7,6 @@ const { sendOTPEmail, sendPasswordResetOTPEmail } = require("../utils/emailServi
 const otpStore = new Map();
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 
-const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
-
-const sendOtpEmail = async (toEmail, otp, purpose) => {
-  const appName = process.env.APP_NAME || "Alumni Sphere";
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = Number(process.env.SMTP_PORT || 587);
-  const smtpSecure = process.env.SMTP_SECURE === "true";
-
-  if (!smtpUser || !smtpPass || !smtpHost) {
-    return { sent: false, reason: "SMTP credentials are not configured" };
-  }
-
-  let nodemailer;
-  try {
-    nodemailer = require("nodemailer");
-  } catch (error) {
-    return { sent: false, reason: "nodemailer package is not installed" };
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpSecure,
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
-  });
-
-  const purposeLabel = purpose === "signup" ? "email verification" : "password reset";
-
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || `"${appName}" <${smtpUser}>`,
-    to: toEmail,
-    subject: `${appName} ${purposeLabel} OTP`,
-    text: `Your ${purposeLabel} OTP is ${otp}. It is valid for 10 minutes.`,
-  });
-
-  return { sent: true };
-};
 
 // SIGNIN
 exports.signin = async (req, res) => {
