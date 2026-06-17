@@ -7,9 +7,25 @@ require("dotenv").config();
 const app = express();
 
 // ── Middleware ───────────────────────────────────────────
+const allowedOrigins = [];
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ""));
+} else {
+  allowedOrigins.push("http://localhost:5173");
+}
+
+const checkOrigin = (origin, callback) => {
+  if (!origin) return callback(null, true);
+  const cleanOrigin = origin.replace(/\/$/, "");
+  if (allowedOrigins.includes(cleanOrigin) || cleanOrigin.endsWith(".vercel.app") || cleanOrigin.startsWith("http://localhost:")) {
+    return callback(null, true);
+  }
+  return callback(new Error("Not allowed by CORS"));
+};
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: checkOrigin,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
   })
@@ -69,7 +85,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: checkOrigin,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true
   }
