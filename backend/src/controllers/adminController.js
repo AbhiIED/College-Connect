@@ -5,19 +5,19 @@ const bcrypt = require("bcryptjs");
 
 exports.getDashboardStats = async (req, res) => {
   try {
-    const [[alumni]] = await db.query("SELECT COUNT(*) AS totalAlumni FROM alumni_table");
-    const [[students]] = await db.query("SELECT COUNT(*) AS activeStudents FROM student_table");
-    const [[events]] = await db.query("SELECT COUNT(*) AS upcomingEvents FROM event_table WHERE Event_Date >= CURDATE()");
-    const [[jobs]] = await db.query("SELECT COUNT(*) AS jobPostings FROM job_postings");
-    const [[totalAmount]] = await db.query("SELECT SUM(Amount) AS totalDonationAmount FROM donation");
-    const [[donationCount]] = await db.query("SELECT COUNT(*) AS totalDonationCount FROM donation");
+    const [[alumni]] = await db.query("SELECT COUNT(*) AS totalAlumni FROM Alumni_Table");
+    const [[students]] = await db.query("SELECT COUNT(*) AS activeStudents FROM Student_Table");
+    const [[events]] = await db.query("SELECT COUNT(*) AS upcomingEvents FROM Event_Table WHERE Event_Date >= CURDATE()");
+    const [[jobs]] = await db.query("SELECT COUNT(*) AS jobPostings FROM Job_Postings");
+    const [[totalAmount]] = await db.query("SELECT SUM(Amount) AS totalDonationAmount FROM Donation");
+    const [[donationCount]] = await db.query("SELECT COUNT(*) AS totalDonationCount FROM Donation");
 
     // Fetch monthly donation trend (past 6 months)
     const [donationTrend] = await db.query(`
       SELECT 
         DATE_FORMAT(Donation_Date, '%b') AS month,
         SUM(Amount) AS value
-      FROM donation
+      FROM Donation
       GROUP BY DATE_FORMAT(Donation_Date, '%b'), YEAR(Donation_Date)
       ORDER BY MIN(Donation_Date) ASC
       LIMIT 6
@@ -26,26 +26,26 @@ exports.getDashboardStats = async (req, res) => {
     // Fetch recent activity
     const [recentDonations] = await db.query(`
       SELECT 'donation' AS type, CONCAT(u.User_Fname, ' donated ₹', d.Amount) AS label, d.Donation_Date AS timestamp 
-      FROM donation d
-      LEFT JOIN user_table u ON d.Donor_ID = u.User_ID
+      FROM Donation d
+      LEFT JOIN User_Table u ON d.Donor_ID = u.User_ID
       ORDER BY d.Donation_Date DESC LIMIT 3
     `);
 
     const [recentPosts] = await db.query(`
       SELECT 'post' AS type, CONCAT(u.User_Fname, ' posted: "', LEFT(p.Content, 20), '..."') AS label, p.Created_At AS timestamp 
-      FROM post p
-      LEFT JOIN user_table u ON p.User_ID = u.User_ID
+      FROM Post p
+      LEFT JOIN User_Table u ON p.User_ID = u.User_ID
       ORDER BY p.Created_At DESC LIMIT 3
     `);
 
     const [recentJobs] = await db.query(`
       SELECT 'job' AS type, CONCAT('Job posted: ', Job_Title, ' at ', Company_Name) AS label, Created_At AS timestamp 
-      FROM job_postings ORDER BY Created_At DESC LIMIT 3
+      FROM Job_Postings ORDER BY Created_At DESC LIMIT 3
     `);
 
     const [recentEvents] = await db.query(`
       SELECT 'event' AS type, CONCAT('New Event: ', Event_Name) AS label, Creation_Date AS timestamp 
-      FROM event_table ORDER BY Event_ID DESC LIMIT 3
+      FROM Event_Table ORDER BY Event_ID DESC LIMIT 3
     `);
 
     // Combine and sort recent activity by timestamp
@@ -175,10 +175,10 @@ exports.getDonations = async (req, res) => {
         t.Payment_Mode AS paymentMode, t.Payment_Status AS paymentStatus, t.Payment_Time AS paymentTime,
         p.Project_ID AS projectId, p.Project_title AS projectTitle, p.Category AS category,
         u.User_Fname AS donorFirstName, u.User_Lname AS donorLastName
-      FROM donation d
+      FROM Donation d
       JOIN project p ON d.Project_ID = p.Project_ID
       JOIN transactions t ON d.transaction_id = t.transaction_id
-      LEFT JOIN user_table u ON d.Donor_ID = u.User_ID
+      LEFT JOIN User_Table u ON d.Donor_ID = u.User_ID
       ORDER BY d.Donation_Date DESC
     `);
     res.json(rows);
@@ -195,9 +195,9 @@ exports.getProjectTransactions = async (req, res) => {
         t.transaction_id, t.Payment_Mode, t.Payment_Status, t.Payment_Time,
         d.Donor_ID, u.User_Fname AS Donor_Name, u.User_Lname AS Donor_LName,
         u.Email_ID AS Donor_Email, u.Phone_no AS Donor_Phone
-      FROM donation d
+      FROM Donation d
       JOIN transactions t ON d.transaction_id = t.transaction_id
-      JOIN user_table u ON d.Donor_ID = u.User_ID
+      JOIN User_Table u ON d.Donor_ID = u.User_ID
       WHERE d.Project_ID = ?
       ORDER BY d.Donation_Date ASC;
     `, [req.params.id]);
@@ -343,9 +343,9 @@ exports.getAllPosts = async (req, res) => {
     const [posts] = await db.query(`
       SELECT p.Post_ID, p.Content, p.Image_URL, p.Created_At, p.Likes_Count, p.Comment_Count, p.Is_Flagged,
              u.User_Fname, u.User_Lname, u.Email_ID, ut.User_Type_name AS User_Type
-      FROM post p
-      LEFT JOIN user_table u ON p.User_ID = u.User_ID
-      LEFT JOIN user_type_table ut ON u.User_Type_ID = ut.User_Type_ID
+      FROM Post p
+      LEFT JOIN User_Table u ON p.User_ID = u.User_ID
+      LEFT JOIN User_Type_Table ut ON u.User_Type_ID = ut.User_Type_ID
       ORDER BY p.Created_At DESC
     `);
     res.json(posts);
@@ -361,7 +361,7 @@ exports.deletePostComment = async (req, res) => {
     const { postId, commentId } = req.params;
     
     const [result] = await db.query(
-      `DELETE FROM post_comment WHERE Comment_ID = ? AND Post_ID = ?`,
+      `DELETE FROM Post_Comment WHERE Comment_ID = ? AND Post_ID = ?`,
       [commentId, postId]
     );
 
@@ -370,7 +370,7 @@ exports.deletePostComment = async (req, res) => {
     }
 
     await db.query(
-      `UPDATE post SET Comment_Count = GREATEST(0, Comment_Count - 1) WHERE Post_ID = ?`,
+      `UPDATE Post SET Comment_Count = GREATEST(0, Comment_Count - 1) WHERE Post_ID = ?`,
       [postId]
     );
 
@@ -388,9 +388,9 @@ exports.getEventRegistrations = async (req, res) => {
     const [registrations] = await db.query(
       `SELECT r.Registration_ID, r.Full_Name, r.Email, r.Phone, r.Graduation_Year, r.Course, r.Registered_At,
               COALESCE(s.Scholar_No, a.Enrollment_No) AS Scholar_ID
-       FROM event_registration r
-       LEFT JOIN student_table s ON r.User_ID = s.User_ID
-       LEFT JOIN alumni_table a ON r.User_ID = a.User_ID
+       FROM Event_Registration r
+       LEFT JOIN Student_Table s ON r.User_ID = s.User_ID
+       LEFT JOIN Alumni_Table a ON r.User_ID = a.User_ID
        WHERE r.Event_ID = ?
        ORDER BY r.Registered_At DESC`,
       [id]
@@ -412,11 +412,11 @@ exports.getAllConnections = async (req, res) => {
         st.User_Type_name AS Sender_Type,
         r.User_ID AS Receiver_ID, r.User_Fname AS Receiver_Fname, r.User_Lname AS Receiver_Lname,
         rt.User_Type_name AS Receiver_Type
-      FROM user_connection c
-      JOIN user_table s ON c.Sender_ID = s.User_ID
-      JOIN user_type_table st ON s.User_Type_ID = st.User_Type_ID
-      JOIN user_table r ON c.Receiver_ID = r.User_ID
-      JOIN user_type_table rt ON r.User_Type_ID = rt.User_Type_ID
+      FROM User_Connection c
+      JOIN User_Table s ON c.Sender_ID = s.User_ID
+      JOIN User_Type_Table st ON s.User_Type_ID = st.User_Type_ID
+      JOIN User_Table r ON c.Receiver_ID = r.User_ID
+      JOIN User_Type_Table rt ON r.User_Type_ID = rt.User_Type_ID
       ORDER BY c.Created_At DESC
     `);
     res.json(connections);
@@ -431,7 +431,7 @@ exports.getOtpLogs = async (req, res) => {
   try {
     const [logs] = await db.query(`
       SELECT OTP_ID, Email, OTP_Code, Purpose, Created_At, Expires_At, Is_Used
-      FROM otp_verification
+      FROM OTP_Verification
       ORDER BY Created_At DESC
       LIMIT 100
     `);
@@ -449,8 +449,8 @@ exports.getAnalytics = async (req, res) => {
     // 1. Event registration rates per event
     const [eventRegistrationRates] = await db.query(`
       SELECT e.Event_ID, e.Event_Name, COUNT(r.Registration_ID) AS registrationCount
-      FROM event_table e
-      LEFT JOIN event_registration r ON e.Event_ID = r.Event_ID
+      FROM Event_Table e
+      LEFT JOIN Event_Registration r ON e.Event_ID = r.Event_ID
       GROUP BY e.Event_ID, e.Event_Name
       ORDER BY registrationCount DESC
       LIMIT 8
@@ -459,8 +459,8 @@ exports.getAnalytics = async (req, res) => {
     // 2. Active users by posts
     const [activeUsersByPosts] = await db.query(`
       SELECT u.User_ID, CONCAT(u.User_Fname, ' ', u.User_Lname) AS name, COUNT(p.Post_ID) AS count
-      FROM user_table u
-      JOIN post p ON u.User_ID = p.User_ID
+      FROM User_Table u
+      JOIN Post p ON u.User_ID = p.User_ID
       GROUP BY u.User_ID, u.User_Fname, u.User_Lname
       ORDER BY count DESC
       LIMIT 5
@@ -469,8 +469,8 @@ exports.getAnalytics = async (req, res) => {
     // 3. Active users by connections
     const [activeUsersByConnections] = await db.query(`
       SELECT u.User_ID, CONCAT(u.User_Fname, ' ', u.User_Lname) AS name, COUNT(c.Connection_ID) AS count
-      FROM user_table u
-      JOIN user_connection c ON (u.User_ID = c.Sender_ID OR u.User_ID = c.Receiver_ID)
+      FROM User_Table u
+      JOIN User_Connection c ON (u.User_ID = c.Sender_ID OR u.User_ID = c.Receiver_ID)
       WHERE c.Status = 'Accepted'
       GROUP BY u.User_ID, u.User_Fname, u.User_Lname
       ORDER BY count DESC
@@ -480,8 +480,8 @@ exports.getAnalytics = async (req, res) => {
     // 4. Active users by donations
     const [activeUsersByDonations] = await db.query(`
       SELECT u.User_ID, CONCAT(u.User_Fname, ' ', u.User_Lname) AS name, SUM(d.Amount) AS totalDonated, COUNT(d.Donation_ID) AS count
-      FROM user_table u
-      JOIN donation d ON u.User_ID = d.Donor_ID
+      FROM User_Table u
+      JOIN Donation d ON u.User_ID = d.Donor_ID
       GROUP BY u.User_ID, u.User_Fname, u.User_Lname
       ORDER BY totalDonated DESC
       LIMIT 5
@@ -499,7 +499,7 @@ exports.getAnalytics = async (req, res) => {
     // 6. Connection status summary
     const [connSummary] = await db.query(`
       SELECT Status, COUNT(*) AS count
-      FROM user_connection
+      FROM User_Connection
       GROUP BY Status
     `);
 
@@ -526,17 +526,17 @@ exports.getAnalytics = async (req, res) => {
     // 7. Platform engagement trends (Posts, Comments, Likes)
     const [dbPosts] = await db.query(`
       SELECT DATE_FORMAT(Created_At, '%b') AS month, COUNT(*) AS count
-      FROM post
+      FROM Post
       GROUP BY DATE_FORMAT(Created_At, '%b'), YEAR(Created_At)
     `);
     const [dbComments] = await db.query(`
       SELECT DATE_FORMAT(Comment_Date, '%b') AS month, COUNT(*) AS count
-      FROM post_comment
+      FROM Post_Comment
       GROUP BY DATE_FORMAT(Comment_Date, '%b'), YEAR(Comment_Date)
     `);
     const [dbLikes] = await db.query(`
       SELECT DATE_FORMAT(Liked_At, '%b') AS month, COUNT(*) AS count
-      FROM post_like
+      FROM Post_Like
       GROUP BY DATE_FORMAT(Liked_At, '%b'), YEAR(Liked_At)
     `);
 
@@ -550,7 +550,7 @@ exports.getAnalytics = async (req, res) => {
         DATE_FORMAT(Created_At, '%b') AS month,
         SUM(CASE WHEN Status = 'Accepted' THEN 1 ELSE 0 END) AS accepted,
         COUNT(*) AS total
-      FROM user_connection
+      FROM User_Connection
       GROUP BY DATE_FORMAT(Created_At, '%b'), YEAR(Created_At)
     `);
 
@@ -565,7 +565,7 @@ exports.getAnalytics = async (req, res) => {
     // 9. Job click & apply trends (Driven by real database job posting counts)
     const [dbJobs] = await db.query(`
       SELECT DATE_FORMAT(Created_At, '%b') AS month, COUNT(*) AS postings
-      FROM job_postings
+      FROM Job_Postings
       GROUP BY DATE_FORMAT(Created_At, '%b'), YEAR(Created_At)
     `);
 

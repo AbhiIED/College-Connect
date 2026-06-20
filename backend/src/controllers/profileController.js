@@ -404,8 +404,8 @@ exports.getUserNotifications = async (req, res) => {
         c.Created_At,
         u.User_Fname, 
         u.User_Lname
-       FROM user_connection c
-       JOIN user_table u ON c.Sender_ID = u.User_ID
+       FROM User_Connection c
+       JOIN User_Table u ON c.Sender_ID = u.User_ID
        WHERE c.Receiver_ID = ? AND c.Status = 'Pending'
        ORDER BY c.Created_At DESC
        LIMIT 10`,
@@ -429,7 +429,7 @@ exports.getUserNotifications = async (req, res) => {
         Event_Name, 
         Event_Date,
         Creation_Date
-       FROM event_table
+       FROM Event_Table
        WHERE Event_Date >= CURDATE()
        ORDER BY Event_ID DESC
        LIMIT 5`
@@ -452,7 +452,7 @@ exports.getUserNotifications = async (req, res) => {
         Job_Title, 
         Company_Name,
         Created_At
-       FROM job_postings
+       FROM Job_Postings
        ORDER BY Job_ID DESC
        LIMIT 5`
     );
@@ -473,7 +473,7 @@ exports.getUserNotifications = async (req, res) => {
         News_ID, 
         Title, 
         Published_At
-       FROM news
+       FROM News
        WHERE Is_Published = 1
        ORDER BY News_ID DESC
        LIMIT 5`

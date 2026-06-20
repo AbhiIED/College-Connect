@@ -149,10 +149,10 @@ exports.getAlumniById = async (req, res) => {
 // Get platform stats for homepage (accessible by any logged in user)
 exports.getPublicStats = async (req, res) => {
   try {
-    const [[alumni]] = await pool.query("SELECT COUNT(*) AS totalAlumni FROM alumni_table");
-    const [[students]] = await pool.query("SELECT COUNT(*) AS totalStudents FROM student_table");
-    const [[events]] = await pool.query("SELECT COUNT(*) AS totalEvents FROM event_table");
-    const [[jobs]] = await pool.query("SELECT COUNT(*) AS totalJobs FROM job_postings");
+    const [[alumni]] = await pool.query("SELECT COUNT(*) AS totalAlumni FROM Alumni_Table");
+    const [[students]] = await pool.query("SELECT COUNT(*) AS totalStudents FROM Student_Table");
+    const [[events]] = await pool.query("SELECT COUNT(*) AS totalEvents FROM Event_Table");
+    const [[jobs]] = await pool.query("SELECT COUNT(*) AS totalJobs FROM Job_Postings");
 
     res.json({
       totalAlumni: alumni.totalAlumni || 0,
