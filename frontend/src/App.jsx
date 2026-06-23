@@ -1,4 +1,5 @@
 import React from "react";
+import { Analytics } from "@vercel/analytics/react"
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Loader from "./pages/Loader";
 import Signin from "./pages/Signin";
@@ -35,6 +36,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 function App() {
   return (
     <Router>
+      <Analytics />
       <Routes>
         {/* Public / User Routes */}
         <Route path="/" element={<Loader />} />
