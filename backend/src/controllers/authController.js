@@ -114,6 +114,7 @@ exports.signup = async (req, res) => {
       message: "Registration started! Please check your email for the verification code.",
       email,
       needsVerification: true,
+      ...(process.env.NODE_ENV !== "production" && { otp }),
     });
   } catch (err) {
     console.error(err);
@@ -223,7 +224,11 @@ exports.resendOTP = async (req, res) => {
     storeOTP(email, otp, pendingUserData);
     await sendOTPEmail(email, otp);
 
-    res.json({ message: "A new verification code has been sent to your email." });
+    res.json({
+      message: "A new verification code has been sent to your email.",
+      email,
+      ...(process.env.NODE_ENV !== "production" && { otp }),
+    });
   } catch (err) {
     console.error("Resend OTP error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -252,7 +257,10 @@ exports.sendOTP = async (req, res) => {
     storeResetOTP(email, otp);
     await sendPasswordResetOTPEmail(email, otp);
 
-    res.json({ message: "OTP sent to your email." });
+    res.json({
+      message: "OTP sent to your email.",
+      ...(process.env.NODE_ENV !== "production" && { otp }),
+    });
   } catch (err) {
     console.error("Send OTP error:", err);
     res.status(500).json({ error: "Internal server error" });
