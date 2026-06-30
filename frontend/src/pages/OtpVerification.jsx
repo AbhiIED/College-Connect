@@ -8,6 +8,7 @@ export default function OtpVerification() {
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [resending, setResending] = useState(false);
+  const [resentOtp, setResentOtp] = useState("");
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -52,7 +53,12 @@ export default function OtpVerification() {
       const data = await response.json();
       if (response.ok) {
         setIsSuccess(true);
-        setMessage("📧 A new code has been sent to your email.");
+        if (data.otp) {
+          setResentOtp(data.otp);
+          setMessage("📧 A new code has been generated (shown below).");
+        } else {
+          setMessage("📧 A new code has been sent to your email.");
+        }
       } else {
         setIsSuccess(false);
         setMessage(data.error || "❌ Failed to resend OTP.");
@@ -92,6 +98,16 @@ export default function OtpVerification() {
         <p className="text-center text-gray-500 text-sm mb-6">
           We sent a 6-digit code to <strong>{state.email}</strong>
         </p>
+        {(state.otp || resentOtp) && (
+          <div className="mb-6 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-center">
+            <span className="block text-xs font-semibold text-indigo-800 uppercase tracking-wider mb-1">
+              🔑 Dev Mode Auto-generated OTP
+            </span>
+            <span className="text-xl font-mono font-bold text-indigo-700 tracking-widest">
+              {resentOtp || state.otp}
+            </span>
+          </div>
+        )}
         <form onSubmit={handleVerify} className="space-y-4">
           <input
             type="text"

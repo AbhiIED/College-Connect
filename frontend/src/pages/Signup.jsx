@@ -107,7 +107,7 @@ export default function Signup() {
 
       const data = await response.json();
       if (response.ok) {
-        navigate("/verify-otp", { state: { email: formData.email } });
+        navigate("/verify-otp", { state: { email: formData.email, otp: data.otp } });
       } else {
         setIsSuccess(false);
         setMessage(data.error || "❌ Signup failed. Try again.");
