@@ -49,16 +49,24 @@ exports.createJob = async (req, res) => {
   }
 };
 
-// Delete a job posting
+// Delete a job posting (owner or admin only)
 exports.deleteJob = async (req, res) => {
   try {
     const jobId = req.params.id;
-    const [result] = await pool.query("DELETE FROM Job_Postings WHERE Job_ID = ?", [jobId]);
+    const userId = Number(req.user.id);
+    const userRole = Number(req.user.role);
 
-    if (result.affectedRows === 0) {
+    // Check ownership
+    const [jobs] = await pool.query("SELECT Posted_By FROM Job_Postings WHERE Job_ID = ?", [jobId]);
+    if (jobs.length === 0) {
       return res.status(404).json({ error: "Job not found." });
     }
 
+    if (Number(jobs[0].Posted_By) !== userId && userRole !== 3) {
+      return res.status(403).json({ error: "Forbidden: you can only delete your own job postings." });
+    }
+
+    await pool.query("DELETE FROM Job_Postings WHERE Job_ID = ?", [jobId]);
     res.json({ success: true, message: "Job deleted successfully!" });
   } catch (err) {
     console.error("❌ Error deleting job:", err);
@@ -66,10 +74,12 @@ exports.deleteJob = async (req, res) => {
   }
 };
 
-// Update a job posting
+// Update a job posting (owner or admin only)
 exports.updateJob = async (req, res) => {
   try {
     const jobId = req.params.id;
+    const userId = Number(req.user.id);
+    const userRole = Number(req.user.role);
     const { title, company, location, description, applyLink, applyFrom, applyTo } = req.body;
 
     if (!title || !company || !location || !description || !applyFrom || !applyTo) {
@@ -80,6 +90,16 @@ exports.updateJob = async (req, res) => {
       return res.status(400).json({ error: "Apply To date must be greater than Apply From date." });
     }
 
+    // Check ownership
+    const [jobs] = await pool.query("SELECT Posted_By FROM Job_Postings WHERE Job_ID = ?", [jobId]);
+    if (jobs.length === 0) {
+      return res.status(404).json({ error: "Job not found." });
+    }
+
+    if (Number(jobs[0].Posted_By) !== userId && userRole !== 3) {
+      return res.status(403).json({ error: "Forbidden: you can only update your own job postings." });
+    }
+
     const query = `
       UPDATE Job_Postings
       SET Job_Title = ?, Company_Name = ?, Location = ?, Description = ?, 
@@ -87,14 +107,10 @@ exports.updateJob = async (req, res) => {
       WHERE Job_ID = ?
     `;
 
-    const [result] = await pool.query(query, [
+    await pool.query(query, [
       title, company, location, description,
       applyLink || null, applyFrom, applyTo, jobId
     ]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Job not found." });
-    }
 
     res.json({ success: true, message: "Job updated successfully!" });
   } catch (err) {

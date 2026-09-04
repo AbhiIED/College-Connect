@@ -116,6 +116,13 @@ export default function MentorshipModal({ alumni, onClose }) {
           </div>
         </div>
 
+        {/* Coming Soon Banner */}
+        <div className="mx-6 mt-4 mb-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <p className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+            🚧 <span>Coming Soon — This feature is under development. Submissions are not saved yet.</span>
+          </p>
+        </div>
+
         {submitted ? (
           /* Success State */
           <div className="flex flex-col items-center justify-center h-[calc(100%-64px)] px-6">

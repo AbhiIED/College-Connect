@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Database
 } from "lucide-react";
+import { authFetch, API_BASE_URL } from "../../utils/api";
 
 export default function SystemSettingsPage() {
   const [admins, setAdmins] = useState([]);
@@ -23,32 +24,25 @@ export default function SystemSettingsPage() {
   const [activeTab, setActiveTab] = useState("admins");
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem("token");
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Fetch admins
-      const resAdmins = await fetch(`${API_BASE_URL}/admin/users`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Fetch admins (uses authFetch for auto token refresh)
+      const resAdmins = await authFetch("/admin/users");
       const dataAdmins = await resAdmins.json();
       if (Array.isArray(dataAdmins)) {
         setAdmins(dataAdmins.filter(u => u.User_Type === "Admin"));
       }
 
       // Fetch OTP Logs
-      const resOtp = await fetch(`${API_BASE_URL}/admin/otp-logs`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const resOtp = await authFetch("/admin/otp-logs");
       const dataOtp = await resOtp.json();
       if (Array.isArray(dataOtp)) {
         setOtpLogs(dataOtp);
       }
 
-      // Check Server Health
+      // Check Server Health (public endpoint — raw fetch is fine)
       const resHealth = await fetch(`${API_BASE_URL}/`);
       const text = await resHealth.text();
       setServerHealth({

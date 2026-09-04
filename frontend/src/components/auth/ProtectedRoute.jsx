@@ -3,7 +3,14 @@ import { Navigate } from "react-router-dom";
 
 export default function ProtectedRoute({ children, requiredRole }) {
   const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user"));
+
+  // Safely parse user — guard against invalid JSON or missing key
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem("user"));
+  } catch {
+    // Invalid JSON in localStorage — treat as unauthenticated
+  }
 
   // If not logged in → redirect to signin
   if (!token) return <Navigate to="/signin" replace />;

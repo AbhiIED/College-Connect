@@ -92,10 +92,31 @@ exports.createEvent = async (req, res) => {
 // Update event (admin only)
 exports.updateEvent = async (req, res) => {
   const { id } = req.params;
-  const data = req.body;
+  const {
+    Event_Name,
+    Event_Description,
+    Event_Date,
+    Event_Type,
+    Event_Link,
+    Event_Location,
+    Event_Image
+  } = req.body;
+
+  const updateData = {};
+  if (Event_Name !== undefined) updateData.Event_Name = Event_Name;
+  if (Event_Description !== undefined) updateData.Event_Description = Event_Description;
+  if (Event_Date !== undefined) updateData.Event_Date = Event_Date;
+  if (Event_Type !== undefined) updateData.Event_Type = Event_Type;
+  if (Event_Link !== undefined) updateData.Event_Link = Event_Link;
+  if (Event_Location !== undefined) updateData.Event_Location = Event_Location;
+  if (Event_Image !== undefined) updateData.Event_Image = Event_Image;
+
+  if (Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: "No update fields provided" });
+  }
 
   try {
-    const [result] = await pool.query(`UPDATE Event_Table SET ? WHERE Event_ID = ?`, [data, id]);
+    const [result] = await pool.query(`UPDATE Event_Table SET ? WHERE Event_ID = ?`, [updateData, id]);
     if (result.affectedRows === 0) return res.status(404).json({ error: "Event not found" });
     res.json({ message: "✅ Event updated successfully" });
   } catch (err) {

@@ -1,7 +1,7 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
-const appName = process.env.APP_NAME || "Alumni Sphere";
+const appName = process.env.APP_NAME || "CollegeConnect";
 const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
 const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
 const smtpHost = process.env.SMTP_HOST || (smtpUser && smtpUser.endsWith("@gmail.com") ? "smtp.gmail.com" : "");

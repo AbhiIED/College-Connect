@@ -1,10 +1,20 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const cookieParser = require("cookie-parser");
 const path = require("path");
 const pool = require("./config/db");
+const { cleanupExpiredOTPs } = require("./utils/otpStore");
 require("dotenv").config();
 
 const app = express();
+
+// ── Security Headers ────────────────────────────────────
+app.use(helmet());
+
+// Trust the first proxy (Nginx / Docker / cloud load-balancer)
+// Required for express-rate-limit to see real client IPs
+app.set("trust proxy", 1);
 
 // ── Middleware ───────────────────────────────────────────
 const allowedOrigins = [];
@@ -14,12 +24,22 @@ if (process.env.FRONTEND_URL) {
   allowedOrigins.push("http://localhost:5173");
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const checkOrigin = (origin, callback) => {
   if (!origin) return callback(null, true);
   const cleanOrigin = origin.replace(/\/$/, "");
-  if (allowedOrigins.includes(cleanOrigin) || cleanOrigin.endsWith(".vercel.app") || cleanOrigin.startsWith("http://localhost:")) {
+
+  // Always allow configured FRONTEND_URL and Vercel previews
+  if (allowedOrigins.includes(cleanOrigin) || cleanOrigin.endsWith(".vercel.app")) {
     return callback(null, true);
   }
+
+  // In development, also allow any localhost origin
+  if (!isProduction && cleanOrigin.startsWith("http://localhost:")) {
+    return callback(null, true);
+  }
+
   return callback(new Error("Not allowed by CORS"));
 };
 
@@ -31,6 +51,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ── Health Check ────────────────────────────────────────
@@ -78,6 +99,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Something went wrong on the server." });
 });
 
+// ── Periodic OTP Cleanup (every 30 minutes) ─────────────
+setInterval(cleanupExpiredOTPs, 30 * 60 * 1000);
+
 // ── Start Server & Configure Socket.io ───────────────────
 const http = require("http");
 const { Server } = require("socket.io");
@@ -105,10 +129,21 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Relay message directly in memory to target online user
-  socket.on("send_message", ({ senderId, receiverId, text }) => {
+  // Persist message to DB and relay in real-time if receiver is online
+  socket.on("send_message", async ({ senderId, receiverId, text }) => {
     if (!receiverId || !text || !text.trim()) return;
 
+    // Always persist to database so messages are never lost
+    try {
+      await pool.query(
+        `INSERT INTO Chat_Message (Sender_ID, Receiver_ID, Message) VALUES (?, ?, ?)`,
+        [senderId, receiverId, text]
+      );
+    } catch (dbErr) {
+      console.error(`❌ Failed to persist chat message:`, dbErr.message);
+    }
+
+    // Relay in real-time if the receiver is currently connected
     const receiverSocketId = activeUsers.get(String(receiverId));
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("receive_message", {
@@ -117,9 +152,7 @@ io.on("connection", (socket) => {
         Message: text,
         Sent_At: new Date()
       });
-      console.log(`📨 Message relayed from User ${senderId} to User ${receiverId} (socket: ${receiverSocketId})`);
-    } else {
-      console.log(`📨 Message to offline User ${receiverId} discarded (no DB persistence)`);
+      console.log(`📨 Message relayed from User ${senderId} to User ${receiverId}`);
     }
   });
 
