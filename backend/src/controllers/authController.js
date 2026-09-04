@@ -4,9 +4,6 @@ const jwt = require("jsonwebtoken");
 const { generateOTP, storeOTP, verifyOTP, getOTPData, storeResetOTP, verifyResetOTP } = require("../utils/otpStore");
 const { sendOTPEmail, sendPasswordResetOTPEmail } = require("../utils/emailService");
 
-const otpStore = new Map();
-const OTP_EXPIRY_MS = 10 * 60 * 1000;
-
 
 // SIGNIN
 exports.signin = async (req, res) => {
@@ -43,13 +40,25 @@ exports.signin = async (req, res) => {
       throw new Error("JWT_SECRET is not defined in environment variables");
     }
 
-    const token = jwt.sign(
-      { id: user.User_ID, email: user.Email_ID, role: user.User_Type_ID },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const payload = { id: user.User_ID, email: user.Email_ID, role: user.User_Type_ID };
+
+    // Short-lived access token (15 minutes)
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "15m" });
+
+    // Long-lived refresh token (7 days) — stored in httpOnly cookie
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + "_refresh");
+    const refreshToken = jwt.sign(payload, refreshSecret, { expiresIn: "7d" });
 
     const { Password, ...userWithoutPassword } = user;
+
+    // Set refresh token as httpOnly cookie
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: "/",
+    });
 
     res.json({
       message: "Signin successful",
@@ -102,19 +111,26 @@ exports.signup = async (req, res) => {
       return res.status(409).json({ error: "Email already registered" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Enforce password strength
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({
+        error: "Password must be at least 8 characters with uppercase, lowercase, digit, and special character.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
     const userData = { ...req.body, hashedPassword };
 
     // Generate and send OTP
     const otp = generateOTP();
-    storeOTP(email, otp, userData);
+    await storeOTP(email, otp, userData);
     await sendOTPEmail(email, otp);
 
     res.status(201).json({
       message: "Registration started! Please check your email for the verification code.",
       email,
       needsVerification: true,
-      ...(process.env.NODE_ENV !== "production" && { otp }),
     });
   } catch (err) {
     console.error(err);
@@ -131,7 +147,7 @@ exports.verifyEmail = async (req, res) => {
   }
 
   try {
-    const result = verifyOTP(email, otp);
+    const result = await verifyOTP(email, otp);
     if (!result.valid) {
       return res.status(400).json({ error: result.reason });
     }
@@ -171,7 +187,20 @@ exports.verifyEmail = async (req, res) => {
         [userData.scholarId, userId, userData.department, userData.branch, currentYearVal, userData.endYear]
       );
     } else if (userTypeId === ROLES.ALUMNI) {
-      const alumniId = Math.floor(10000 + Math.random() * 90000);
+      let alumniId;
+      let isUnique = false;
+      let attempts = 0;
+      while (!isUnique && attempts < 10) {
+        alumniId = Math.floor(100000 + Math.random() * 900000);
+        const [existingAlumni] = await pool.query("SELECT Alumni_ID FROM Alumni_Table WHERE Alumni_ID = ?", [alumniId]);
+        if (existingAlumni.length === 0) {
+          isUnique = true;
+        }
+        attempts++;
+      }
+      if (!isUnique) {
+        throw new Error("Failed to generate a unique Alumni ID");
+      }
 
       await pool.query(
         `INSERT INTO Alumni_Table (
@@ -200,7 +229,7 @@ exports.resendOTP = async (req, res) => {
 
   try {
     let pendingUserData = null;
-    const pendingData = getOTPData(email);
+    const pendingData = await getOTPData(email);
     
     if (pendingData && pendingData.userData) {
       pendingUserData = pendingData.userData;
@@ -221,13 +250,12 @@ exports.resendOTP = async (req, res) => {
     }
 
     const otp = generateOTP();
-    storeOTP(email, otp, pendingUserData);
+    await storeOTP(email, otp, pendingUserData);
     await sendOTPEmail(email, otp);
 
     res.json({
       message: "A new verification code has been sent to your email.",
       email,
-      ...(process.env.NODE_ENV !== "production" && { otp }),
     });
   } catch (err) {
     console.error("Resend OTP error:", err);
@@ -254,12 +282,11 @@ exports.sendOTP = async (req, res) => {
     }
 
     const otp = generateOTP();
-    storeResetOTP(email, otp);
+    await storeResetOTP(email, otp);
     await sendPasswordResetOTPEmail(email, otp);
 
     res.json({
       message: "OTP sent to your email.",
-      ...(process.env.NODE_ENV !== "production" && { otp }),
     });
   } catch (err) {
     console.error("Send OTP error:", err);
@@ -276,7 +303,7 @@ exports.verifyOTP = async (req, res) => {
   }
 
   try {
-    const result = verifyResetOTP(email, otp, false);
+    const result = await verifyResetOTP(email, otp, false);
     if (!result.valid) {
       return res.status(400).json({ error: result.reason });
     }
@@ -297,12 +324,20 @@ exports.resetPassword = async (req, res) => {
   }
 
   try {
-    const result = verifyResetOTP(email, otp, true);
+    const result = await verifyResetOTP(email, otp, true);
     if (!result.valid) {
       return res.status(400).json({ error: result.reason });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    // Enforce password strength on reset
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({
+        error: "Password must be at least 8 characters with uppercase, lowercase, digit, and special character.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
     const [result2] = await pool.query(
       "UPDATE User_Table SET Password = ? WHERE Email_ID = ?",
       [hashedPassword, email]
@@ -317,4 +352,43 @@ exports.resetPassword = async (req, res) => {
     console.error("Reset password error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
+};
+
+
+// REFRESH ACCESS TOKEN
+exports.refreshToken = async (req, res) => {
+  const rt = req.cookies?.refreshToken;
+  if (!rt) {
+    return res.status(401).json({ error: "No refresh token provided" });
+  }
+
+  try {
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + "_refresh");
+    const decoded = jwt.verify(rt, refreshSecret);
+
+    // Issue a fresh access token
+    const newAccessToken = jwt.sign(
+      { id: decoded.id, email: decoded.email, role: decoded.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    res.json({ token: newAccessToken });
+  } catch (err) {
+    console.error("Refresh token error:", err.message);
+    res.clearCookie("refreshToken");
+    return res.status(401).json({ error: "Invalid or expired refresh token. Please sign in again." });
+  }
+};
+
+
+// LOGOUT
+exports.logout = (req, res) => {
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: "/",
+  });
+  res.json({ message: "Logged out successfully" });
 };

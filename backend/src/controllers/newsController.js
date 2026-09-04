@@ -7,14 +7,18 @@ exports.getAllNews = async (req, res) => {
     const showAll = req.query.all === "true";
     
     let query = `SELECT * FROM News`;
+    const params = [];
     if (!showAll) {
       query += ` WHERE Is_Published = 1`;
     }
     query += ` ORDER BY Published_At DESC`;
     
-    if (limit) query += ` LIMIT ${limit}`;
+    if (limit && !isNaN(limit)) {
+      query += ` LIMIT ?`;
+      params.push(limit);
+    }
 
-    const [rows] = await pool.query(query);
+    const [rows] = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error("❌ Error fetching news:", err);

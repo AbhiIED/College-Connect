@@ -7,7 +7,7 @@ services:
     container_name: college-connect-db
     restart: always
     environment:
-      MYSQL_DATABASE: collegeconnect
+      MYSQL_DATABASE: CollegeConnect
       MYSQL_ROOT_PASSWORD: safe_root_password_change_me
     ports:
       - "3306:3306"
@@ -30,7 +30,7 @@ services:
       - DB_HOST=db
       - DB_USER=root
       - DB_PASSWORD=safe_root_password_change_me
-      - DB_NAME=collegeconnect
+      - DB_NAME=CollegeConnect
       - JWT_SECRET=your_jwt_secret_key_change_in_production
       # - SMTP_HOST=smtp.gmail.com
       # - SMTP_USER=your-email@gmail.com

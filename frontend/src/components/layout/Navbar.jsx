@@ -21,7 +21,8 @@ import {
   GraduationCap,
   ShieldCheck,
 } from "lucide-react";
-import logo from "../../assets/logo.png";
+import Logo from "../common/Logo";
+import { logout as doLogout, authFetch } from "../../utils/api";
 
 /* ───────────────────────────── helpers ───────────────────────────── */
 
@@ -90,20 +91,13 @@ export default function Navbar() {
 
   /* ── logout ── */
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/signin");
+    doLogout(); // clears cookie + localStorage and redirects to /signin
   };
 
   /* ── fetch notifications ── */
   const fetchNotifications = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-      const res = await fetch(`${API_BASE_URL}/api/user/notifications`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await authFetch("/api/user/notifications");
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
@@ -155,24 +149,13 @@ export default function Navbar() {
           className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16"
         >
           {/* ─── LEFT: logo ─── */}
-          <Link to="/homepage" className="flex items-center gap-3 group" id="navbar-logo">
-            <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity" />
-              <img
-                src={logo}
-                alt="College Connect"
-                className="relative h-10 w-auto object-contain"
-              />
-            </div>
-            <div className="hidden sm:block">
-              <span className="text-lg font-bold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
-                College Connect
-              </span>
-              <span className="block text-[10px] font-medium text-gray-400 -mt-0.5 tracking-wide">
-                MANIT Bhopal
-              </span>
-            </div>
-          </Link>
+          <Logo
+            to="/homepage"
+            size="md"
+            showText={true}
+            subtitle="MANIT Bhopal"
+            className="group"
+          />
 
           {/* ─── CENTER: nav links (desktop) ─── */}
           <div className="hidden lg:flex items-center gap-1" id="navbar-desktop-links">

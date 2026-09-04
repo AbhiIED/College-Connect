@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import img from "../assets/logo.png"; 
+import Logo from "../components/common/Logo";
 
 function Loader() {
   return (
@@ -8,7 +8,7 @@ function Loader() {
       <div className="bg-[#F5EFE6] p-10 rounded-xl shadow-lg w-150 h-150 text-center">
         <div className="flex justify-center items-center">
           <div className="mt-4 mb-10 flex items-center justify-center relative">
-            <img src={img} alt="Logo" className="object-fill h-50 w-50" />
+            <Logo size="xl" to={null} showText={false} />
           </div>
         </div>
 
@@ -48,3 +48,4 @@ function Loader() {
 }
 
 export default Loader;
+

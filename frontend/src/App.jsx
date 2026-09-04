@@ -32,6 +32,7 @@ import SystemSettingsPage from "./pages/Admin/SystemSettingsPage";
 import AnalyticsPage from "./pages/Admin/AnalyticsPage";
 import NotificationsPage from "./pages/Admin/NotificationsPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import NotFound from "./pages/NotFound";
 
 function App() {
   return (
@@ -89,6 +90,9 @@ function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
         </Route>
+
+        {/* Catch-all 404 */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

@@ -18,6 +18,7 @@ import {
   Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logout as doLogout, authFetch } from "../../utils/api";
 
 export default function AdminSidebar() {
   const navigate = useNavigate();
@@ -42,15 +43,11 @@ export default function AdminSidebar() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
     const READ_KEY = "admin_read_notifications";
 
     const fetchCount = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/admin/notifications`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authFetch("/admin/notifications");
         if (!res.ok) return;
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -80,9 +77,7 @@ export default function AdminSidebar() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/signin");
+    doLogout(); // clears cookie + localStorage and redirects to /signin
   };
 
   const navGroups = [

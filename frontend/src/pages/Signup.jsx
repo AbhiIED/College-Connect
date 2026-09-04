@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircleIcon, ExclamationCircleIcon, UserIcon, IdentificationIcon, BriefcaseIcon, MapPinIcon } from "@heroicons/react/24/solid";
 import { motion, AnimatePresence } from "framer-motion";
-import logo from "../assets/logo.png";
+import Logo from "../components/common/Logo";
 import { API_BASE_URL } from "../utils/api";
 
 const InputField = ({ label, icon: Icon, ...props }) => (
@@ -156,14 +156,14 @@ export default function Signup() {
       {/* LEFT SIDE - Brand */}
       <div className="hidden lg:flex w-[45%] bg-indigo-900 flex-col justify-center items-center p-12 relative overflow-hidden text-white shadow-2xl z-10">
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
-        <motion.img 
+        <motion.div 
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          src={logo} 
-          alt="Alumni Logo" 
-          className="h-40 w-40 mb-8 drop-shadow-2xl z-10 bg-white/10 p-4 rounded-3xl backdrop-blur-sm border border-white/20" 
-        />
+          className="z-10 mb-8"
+        >
+          <Logo size="xl" variant="light" to={null} />
+        </motion.div>
         <motion.div
            initial={{ opacity: 0, y: 30 }}
            animate={{ opacity: 1, y: 0 }}
@@ -172,7 +172,7 @@ export default function Signup() {
         >
           <h1 className="text-5xl font-extrabold tracking-tight mb-6 leading-tight">Join Your <br/> <span className="text-indigo-300">Legacy.</span></h1>
           <p className="text-lg text-indigo-100 max-w-md font-medium opacity-90">
-            Build incredible connections, unlock career paths, and stay tethered to your roots through Alumni Sphere.
+            Build incredible connections, unlock career paths, and stay tethered to your roots through CollegeConnect.
           </p>
         </motion.div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import logo from "../assets/logo.png";
+import { API_BASE_URL, setToken } from "../utils/api";
+import Logo from "../components/common/Logo";
 
 export default function Signin() {
   const navigate = useNavigate();
@@ -40,17 +41,17 @@ export default function Signin() {
     setIsSubmitting(true);
 
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
       const res = await fetch(`${API_BASE_URL}/auth/signin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // receive httpOnly refresh token cookie
         body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        localStorage.setItem("token", data.token);
+        setToken(data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
 
         if (data.user.User_Type_ID === 3) {
@@ -75,12 +76,8 @@ export default function Signin() {
   return (
     <div className="min-h-screen w-full bg-gray-100 lg:grid lg:grid-cols-2">
       <div className="hidden bg-indigo-700 text-white lg:flex flex-col justify-center items-center p-10">
-        <img
-          src={logo}
-          alt="Alumni Logo"
-          className="h-32 w-32 mb-6 drop-shadow-lg"
-        />
-        <h1 className="text-3xl font-bold text-center">Welcome Back to Alumni Sphere</h1>
+        <Logo size="xl" variant="light" to={null} className="mb-6" />
+        <h1 className="text-3xl font-bold text-center">Welcome Back to CollegeConnect</h1>
         <p className="text-center mt-4 text-indigo-100 max-w-sm">
           Reconnect with your network, stay updated, and continue your journey with us.
         </p>
@@ -88,8 +85,11 @@ export default function Signin() {
 
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+          <div className="flex justify-center mb-4 lg:hidden">
+            <Logo size="lg" to={null} showText={false} />
+          </div>
           <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">Sign In</h2>
-          <p className="text-sm text-gray-500 text-center mb-8">Access your Alumni Sphere account.</p>
+          <p className="text-sm text-gray-500 text-center mb-8">Access your CollegeConnect account.</p>
 
           <form onSubmit={handleSignin} className="space-y-6" noValidate>
             <div>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Logo from "../components/common/Logo";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -114,6 +115,9 @@ export default function ForgotPassword() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
       <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-md">
+        <div className="flex justify-center mb-5">
+          <Logo size="lg" to={null} showText={false} />
+        </div>
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
           Forgot Your Password?
         </h2>

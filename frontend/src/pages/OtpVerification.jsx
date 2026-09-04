@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import Logo from "../components/common/Logo";
 
 export default function OtpVerification() {
   const { state } = useLocation();
@@ -92,6 +93,9 @@ export default function OtpVerification() {
   return (
     <div className="flex h-screen justify-center items-center bg-gray-100">
       <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md">
+        <div className="flex justify-center mb-5">
+          <Logo size="lg" to={null} showText={false} />
+        </div>
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">
           Verify Your Email
         </h2>

@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS User_Table (
     Address      TEXT,
     Profile_Pic  VARCHAR(255)   DEFAULT NULL,
     Is_Verified  TINYINT(1)     DEFAULT 0,
+    Verification_Query TEXT     DEFAULT NULL,
     FOREIGN KEY (User_Type_ID) REFERENCES User_Type_Table(User_Type_ID)
 );
 
@@ -243,6 +244,7 @@ CREATE TABLE IF NOT EXISTS Post (
     Created_At     DATETIME       DEFAULT CURRENT_TIMESTAMP,
     Likes_Count    INT            DEFAULT 0,
     Comment_Count  INT            DEFAULT 0,
+    Is_Flagged     TINYINT(1)     DEFAULT 0,
     FOREIGN KEY (User_ID) REFERENCES User_Table(User_ID) ON DELETE CASCADE
 );
 
@@ -299,7 +301,8 @@ CREATE TABLE IF NOT EXISTS OTP_Verification (
     Purpose      ENUM('signup', 'reset_password') NOT NULL,
     Created_At   DATETIME       DEFAULT CURRENT_TIMESTAMP,
     Expires_At   DATETIME       NOT NULL,
-    Is_Used      TINYINT(1)     DEFAULT 0
+    Is_Used      TINYINT(1)     DEFAULT 0,
+    User_Data    TEXT           DEFAULT NULL
 );
 
 -- ============================================================
