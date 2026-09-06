@@ -79,3 +79,8 @@ Desktop.ini
 # Agent / AI local workspaces
 .agents/
 .gemini/
+
+# Interview, Architecture & Integration Guides
+FULL_STACK_INTERVIEW_MASTER_GUIDE.md
+LLD_HLD_AND_DESIGN_PATTERNS_GUIDE.md
+RAZORPAY_INTEGRATION_AND_WEBHOOKS.md

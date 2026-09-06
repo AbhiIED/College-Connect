@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getEventImage, handleEventImageError } from "../../utils/imageUtils";
 
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
@@ -431,17 +432,12 @@ export default function EventsPage() {
                     <TableCell className="font-semibold text-gray-400 font-display text-sm">#{event.id}</TableCell>
                     <TableCell className="p-4">
                       <div className="flex items-center gap-3">
-                        {event.image ? (
-                          <img
-                            src={event.image}
-                            alt="Event"
-                            className="h-10 w-16 object-cover rounded-lg border border-gray-100/50 shrink-0"
-                          />
-                        ) : (
-                          <div className="h-10 w-16 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center text-gray-300 shrink-0">
-                            <ImageIcon className="h-5 w-5" />
-                          </div>
-                        )}
+                        <img
+                          src={getEventImage(event.image, event.category)}
+                          onError={(e) => handleEventImageError(e, event.category)}
+                          alt="Event"
+                          className="h-10 w-16 object-cover rounded-lg border border-gray-100/50 shrink-0"
+                        />
                         <div className="min-w-0">
                           <h4 className="font-display font-bold text-sm text-gray-900 truncate leading-snug">
                             {event.name}
@@ -780,10 +776,11 @@ export default function EventsPage() {
                 </div>
 
                 {/* Event banner poster */}
-                {selectedEvent.image && (
-                  <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50 max-h-32 flex items-center justify-center shrink-0">
+                {selectedEvent && (
+                  <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50 max-h-36 flex items-center justify-center shrink-0">
                     <img
-                      src={selectedEvent.image}
+                      src={getEventImage(selectedEvent.image, selectedEvent.category)}
+                      onError={(e) => handleEventImageError(e, selectedEvent.category)}
                       alt="Banner"
                       className="w-full h-full object-cover"
                     />

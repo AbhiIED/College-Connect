@@ -17,6 +17,7 @@ import {
   Flag
 } from "lucide-react";
 import jsPDF from "jspdf";
+import { getPostImage, handlePostImageError } from "../../utils/imageUtils";
 
 export default function PostsPage() {
   const [posts, setPosts] = useState([]);
@@ -345,7 +346,8 @@ export default function PostsPage() {
                 {selectedPost.image && (
                   <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50 flex items-center justify-center">
                     <img
-                      src={selectedPost.image}
+                      src={getPostImage(selectedPost.image)}
+                      onError={handlePostImageError}
                       alt="Post attachment"
                       className="max-h-60 object-contain w-full"
                     />

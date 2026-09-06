@@ -5,6 +5,7 @@ import {
   Calendar, Shield, Bell, Eye, EyeOff, Lock, Camera, Save,
   BookOpen, Award, Globe, Wrench, ChevronRight, Settings, UserCog
 } from "lucide-react";
+import { handleAvatarError } from "../utils/imageUtils";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const getToken = () => localStorage.getItem("token");
@@ -289,7 +290,12 @@ export default function ManageAccount() {
                 <div className="relative group">
                   <div className="w-28 h-28 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-gray-100">
                     {user.profilePic ? (
-                      <img src={user.profilePic} alt="Profile" className="w-full h-full object-cover" />
+                      <img
+                        src={user.profilePic}
+                        onError={(e) => handleAvatarError(e, `${user.firstName || ''} ${user.lastName || ''}`)}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <div className="w-full h-full bg-indigo-100 flex items-center justify-center">
                         <User className="w-12 h-12 text-indigo-400" />

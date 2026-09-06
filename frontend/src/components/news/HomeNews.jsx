@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Newspaper, ArrowRight, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import NewsDetailModal from "./NewsDetailModal";
+import { getNewsImage, handleNewsImageError } from "../../utils/imageUtils";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -123,9 +124,10 @@ export default function HomeNews() {
                   className="flex-none w-80 snap-start bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all overflow-hidden group/card cursor-pointer hover:-translate-y-0.5 duration-200"
                 >
                   {/* Image */}
-                  <div className="relative h-44 overflow-hidden">
+                  <div className="relative h-44 overflow-hidden bg-slate-100">
                     <img
-                      src={item.Image_URL || "https://images.unsplash.com/photo-1504711434969-e33886168d6c?w=800&q=80"}
+                      src={getNewsImage(item.Image_URL, item.Category)}
+                      onError={(e) => handleNewsImageError(e, item.Category)}
                       alt={item.Title}
                       className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500"
                     />

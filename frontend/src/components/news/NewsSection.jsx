@@ -4,6 +4,7 @@ import {
   LayoutGrid, Building2, Users, Briefcase
 } from "lucide-react";
 import NewsDetailModal from "./NewsDetailModal";
+import { getNewsImage, handleNewsImageError } from "../../utils/imageUtils";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -199,9 +200,10 @@ export default function NewsSection() {
                   className="group relative bg-white border border-slate-100 hover:border-indigo-200 rounded-3xl overflow-hidden p-5 sm:p-7 flex flex-col lg:flex-row gap-8 shadow-xs hover:shadow-xl hover:shadow-indigo-100/20 transition-all duration-300 cursor-pointer"
                 >
                   {/* Left Column: Big Image Banner */}
-                  <div className="lg:w-7/12 w-full h-80 lg:h-96 rounded-2xl overflow-hidden relative border border-slate-100 shrink-0">
+                  <div className="lg:w-7/12 w-full h-80 lg:h-96 rounded-2xl overflow-hidden relative border border-slate-100 shrink-0 bg-slate-100">
                     <img 
-                      src={featured.Image_URL || "https://images.unsplash.com/photo-1504711434969-e33886168d6c?w=1200&q=80"} 
+                      src={getNewsImage(featured.Image_URL, featured.Category)} 
+                      onError={(e) => handleNewsImageError(e, featured.Category)}
                       alt={featured.Title} 
                       className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
                     />
@@ -264,9 +266,10 @@ export default function NewsSection() {
                         className="group bg-white border border-slate-100 hover:border-indigo-150 rounded-2xl overflow-hidden hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-100/10 transition-all duration-300 flex flex-col cursor-pointer shadow-3xs"
                       >
                         {/* Card Top: Image banner */}
-                        <div className="relative h-48 w-full overflow-hidden shrink-0 border-b border-slate-50">
+                        <div className="relative h-48 w-full overflow-hidden shrink-0 border-b border-slate-50 bg-slate-100">
                           <img
-                            src={article.Image_URL || "https://images.unsplash.com/photo-1504711434969-e33886168d6c?w=800&q=80"}
+                            src={getNewsImage(article.Image_URL, article.Category)}
+                            onError={(e) => handleNewsImageError(e, article.Category)}
                             alt={article.Title}
                             className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
                           />

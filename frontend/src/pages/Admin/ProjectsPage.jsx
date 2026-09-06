@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getProjectImage, handleProjectImageError } from "../../utils/imageUtils";
 import {
   Card,
   CardHeader,
@@ -1029,16 +1030,13 @@ export default function ProjectsPage() {
                 </p>
               </div>
 
-              {selectedProject.image && (
+              {selectedProject && (
                 <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50 max-h-48 flex items-center justify-center">
                   <img
-                    src={selectedProject.image}
+                    src={getProjectImage(selectedProject.image, selectedProject.category)}
                     alt="Project"
-                    className="object-contain w-full h-full max-h-48"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.style.display = 'none';
-                    }}
+                    className="object-cover w-full h-full max-h-48"
+                    onError={(e) => handleProjectImageError(e, selectedProject.category)}
                   />
                 </div>
               )}

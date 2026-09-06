@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Heart, Search, Sparkles, BookOpen, Building2, Leaf, Dumbbell, Activity, LayoutGrid } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getProjectImage, handleProjectImageError } from "../../utils/imageUtils";
 
 const CATEGORIES = [
   { label: "All", value: "all", icon: LayoutGrid },
@@ -203,10 +204,11 @@ export default function Donations() {
                   style={{ animationDelay: `${idx * 60}ms` }}
                 >
                   {/* Image */}
-                  <div className="relative overflow-hidden h-52 shrink-0">
+                  <div className="relative overflow-hidden h-52 shrink-0 bg-slate-100">
                     <img
-                      src={cause.image}
+                      src={getProjectImage(cause.image, cause.category)}
                       alt={cause.title}
+                      onError={(e) => handleProjectImageError(e, cause.category)}
                       className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                     />
                     {/* Gradient overlay */}

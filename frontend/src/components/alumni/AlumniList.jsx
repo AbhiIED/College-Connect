@@ -46,6 +46,7 @@ const AlumniList = () => {
               course={`${item.Course} ${item.Department}`}
               jobTitle={item.Job_Title}
               companyName={item.Company_Name}
+              profilePic={item.Profile_Pic}
               onBookMentorship={() => setMentorshipTarget({
                 id: item.Alumni_ID,
                 name: `${item.User_Fname} ${item.User_Lname}`,

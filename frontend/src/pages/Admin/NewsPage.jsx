@@ -16,6 +16,7 @@ import {
   Image,
   Tag
 } from "lucide-react";
+import { getNewsImage, handleNewsImageError } from "../../utils/imageUtils";
 
 export default function NewsPage() {
   const [news, setNews] = useState([]);
@@ -287,17 +288,12 @@ export default function NewsPage() {
                   <TableRow key={article.News_ID} className="hover:bg-gray-50/30 transition-colors">
                     <TableCell className="max-w-md p-4">
                       <div className="flex items-center gap-3">
-                        {article.Image_URL ? (
-                          <img
-                            src={article.Image_URL}
-                            alt="News"
-                            className="h-10 w-16 object-cover rounded-lg border border-gray-100/50 shrink-0"
-                          />
-                        ) : (
-                          <div className="h-10 w-16 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center text-gray-300 shrink-0">
-                            <Image className="h-5 w-5" />
-                          </div>
-                        )}
+                        <img
+                          src={getNewsImage(article.Image_URL, article.Category)}
+                          onError={(e) => handleNewsImageError(e, article.Category)}
+                          alt="News"
+                          className="h-10 w-16 object-cover rounded-lg border border-gray-100/50 shrink-0"
+                        />
                         <div className="min-w-0">
                           <h4 className="font-display font-bold text-sm text-gray-900 truncate leading-snug">
                             {article.Title}

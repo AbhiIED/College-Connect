@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Heart, Users, Target, Sparkles, Loader2, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getProjectImage, handleProjectImageError } from "../utils/imageUtils";
 
 const QUICK_AMOUNTS = [100, 500, 1000, 5000];
 
@@ -193,10 +194,11 @@ export default function DonationDetails() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-rose-50/20">
 
       {/* ── FULL-BLEED HERO IMAGE ── */}
-      <div className="relative w-full h-[360px] md:h-[420px] overflow-hidden">
+      <div className="relative w-full h-[360px] md:h-[420px] overflow-hidden bg-slate-900">
         <img
-          src={cause.image}
+          src={getProjectImage(cause.image, cause.category)}
           alt={cause.title}
+          onError={(e) => handleProjectImageError(e, cause.category)}
           className="w-full h-full object-cover"
         />
         {/* Dark gradient overlay */}

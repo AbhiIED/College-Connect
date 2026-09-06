@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout as doLogout, authFetch } from "../../utils/api";
+import { getAvatarImage, handleAvatarError } from "../../utils/imageUtils";
 
 export default function AdminSidebar() {
   const navigate = useNavigate();
@@ -280,7 +281,8 @@ export default function AdminSidebar() {
             <div className="flex items-center gap-3 px-1">
               {adminUser?.Profile_Pic ? (
                 <img
-                  src={adminUser.Profile_Pic}
+                  src={getAvatarImage(adminUser.Profile_Pic, adminUser.User_Fname || "Admin")}
+                  onError={(e) => handleAvatarError(e, adminUser.User_Fname || "Admin")}
                   alt="Admin"
                   className="h-10 w-10 rounded-lg object-cover ring-2 ring-brand-100"
                 />
@@ -314,7 +316,8 @@ export default function AdminSidebar() {
           <div className="flex flex-col items-center gap-3">
             {adminUser?.Profile_Pic ? (
               <img
-                src={adminUser.Profile_Pic}
+                src={getAvatarImage(adminUser.Profile_Pic, adminUser.User_Fname || "Admin")}
+                onError={(e) => handleAvatarError(e, adminUser.User_Fname || "Admin")}
                 alt="Admin"
                 className="h-9 w-9 rounded-lg object-cover ring-2 ring-brand-100"
               />
