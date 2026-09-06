@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ThumbsUp, MessageCircle, Share2, PenSquare, Sparkles, ChevronDown, ChevronUp, Send, Trash2, AlertTriangle, Pencil, X, Check, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import maledp from "../../assets/dp-male.png";
+import { getPostImage, handlePostImageError, getAvatarImage, handleAvatarError } from "../../utils/imageUtils";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
 
@@ -337,8 +338,9 @@ export default function FeedSection() {
             <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-slate-50">
               <div className="relative">
                 <img
-                  src={post.User_Image || maledp}
-                  alt={post.User_Fname}
+                  src={getAvatarImage(post.User_Image, `${post.User_Fname || ''} ${post.User_Lname || ''}`)}
+                  onError={(e) => handleAvatarError(e, `${post.User_Fname || ''} ${post.User_Lname || ''}`)}
+                  alt={post.User_Fname || "User"}
                   className="w-11 h-11 rounded-full object-cover ring-2 ring-indigo-100"
                 />
                 <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white" />
@@ -420,8 +422,9 @@ export default function FeedSection() {
             {post.Image_URL?.trim() && (
               <div className="mt-4 px-5">
                 <img
-                  src={post.Image_URL}
-                  alt="post"
+                  src={getPostImage(post.Image_URL)}
+                  onError={handlePostImageError}
+                  alt="post attachment"
                   className="w-full rounded-xl object-cover max-h-80 shadow-sm"
                 />
               </div>
@@ -485,8 +488,9 @@ export default function FeedSection() {
                 {(comments[post.Post_ID] || []).map((c) => (
                   <div key={c.Comment_ID} className="flex items-start gap-3 group">
                     <img
-                      src={c.User_Image || maledp}
-                      alt={c.User_Fname}
+                      src={getAvatarImage(c.User_Image, `${c.User_Fname || ''} ${c.User_Lname || ''}`)}
+                      onError={(e) => handleAvatarError(e, `${c.User_Fname || ''} ${c.User_Lname || ''}`)}
+                      alt={c.User_Fname || "User"}
                       className="w-8 h-8 rounded-full object-cover ring-1 ring-indigo-100 shrink-0 mt-0.5"
                     />
                     <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm border border-slate-100 flex-1 relative">
@@ -519,7 +523,8 @@ export default function FeedSection() {
                 {/* New comment input */}
                 <div className="flex items-center gap-2 mt-2">
                   <img
-                    src={user.Profile_Pic ? `${BASE_URL}${user.Profile_Pic}` : maledp}
+                    src={getAvatarImage(user.Profile_Pic, `${user.firstName || user.User_Fname || 'Me'}`)}
+                    onError={(e) => handleAvatarError(e, `${user.firstName || user.User_Fname || 'Me'}`)}
                     alt="me"
                     className="w-8 h-8 rounded-full object-cover ring-1 ring-indigo-100 shrink-0"
                   />

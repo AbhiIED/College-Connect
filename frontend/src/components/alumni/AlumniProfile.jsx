@@ -3,9 +3,10 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   UserPlus, MapPin, Briefcase, Building2, GraduationCap,
   BookOpen, Mail, Globe, ArrowLeft, Loader2, Sparkles,
-  Code, Award, UserCheck, UserX, Clock
+  Code, Award, UserCheck, UserX, Clock, MessageCircle
 } from "lucide-react";
 import MentorshipModal from "../mentorship/MentorshipModal";
+import { handleAvatarError } from "../../utils/imageUtils";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -166,6 +167,7 @@ export default function AlumniProfile() {
                 <img
                   src={alumni.Profile_Pic.startsWith("http") ? alumni.Profile_Pic : `${API}${alumni.Profile_Pic}`}
                   alt={fullName}
+                  onError={(e) => handleAvatarError(e, fullName)}
                   className="w-full h-full rounded-2xl object-cover"
                 />
               ) : (
@@ -222,15 +224,22 @@ export default function AlumniProfile() {
                       <div className="flex gap-2">
                         <button
                           disabled
-                          className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 px-6 py-3 rounded-xl font-semibold text-sm cursor-not-allowed"
+                          className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 px-5 py-3 rounded-xl font-semibold text-sm cursor-not-allowed"
                         >
                           <UserCheck className="w-4 h-4" />
                           Connected
                         </button>
+                        <button
+                          onClick={() => navigate("/connections", { state: { chatUserId: alumni.User_ID } })}
+                          className="inline-flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-5 py-3 rounded-xl font-semibold text-sm shadow-md transition-all active:scale-[0.98]"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          Message
+                        </button>
                         {alumni.User_Type_ID === 1 && (
                           <button
                             onClick={() => setShowMentorship(true)}
-                            className="inline-flex items-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-200 px-6 py-3 rounded-xl font-semibold text-sm shadow-md transition-all active:scale-[0.98]"
+                            className="inline-flex items-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-200 px-5 py-3 rounded-xl font-semibold text-sm shadow-md transition-all active:scale-[0.98]"
                           >
                             Book Mentorship
                           </button>

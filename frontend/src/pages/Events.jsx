@@ -5,6 +5,7 @@ import {
   Monitor, MessageSquare, Building2, Wrench, Code, Filter, Tag, X, CheckCircle2, AlertCircle
 } from "lucide-react";
 import fallbackImage from "../assets/event-image.webp";
+import { getEventImage, handleEventImageError } from "../utils/imageUtils";
 
 const MOCK_EVENTS = [
   { Event_ID: "m1", Event_Name: "Life at FAANG — Alumni Webinar", Event_Date: "2026-06-15", Event_Description: "Hear first-hand experiences from MANIT alumni working at Google, Amazon, and Meta. Learn about interview prep, work culture, and career growth.", Event_Link: "#", Event_Image: null, category: "Webinar", speaker: "Rahul Verma (Google SWE), Priya Nair (Meta PM)" },
@@ -194,9 +195,13 @@ export default function EventSection() {
               return (
                 <div key={event.Event_ID} className="group bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden card-hover">
                   {/* Image */}
-                  <div className="relative h-44 overflow-hidden">
-                    <img src={event.Event_Image || fallbackImage} onError={(e) => (e.target.src = fallbackImage)} alt={event.Event_Name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="relative h-44 overflow-hidden bg-slate-100">
+                    <img
+                      src={getEventImage(event.Event_Image, event.category || event.Event_Type)}
+                      onError={(e) => handleEventImageError(e, event.category || event.Event_Type)}
+                      alt={event.Event_Name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                     {idx === 0 && (
                       <span className="absolute top-3 left-3 badge-chip bg-amber-500 text-white text-[10px] shadow-lg">
@@ -255,9 +260,13 @@ export default function EventSection() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {expiredEvents.map((event) => (
               <div key={event.Event_ID} className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden opacity-75 hover:opacity-100 transition-opacity">
-                <div className="relative h-32 overflow-hidden">
-                  <img src={event.Event_Image || fallbackImage} onError={(e) => (e.target.src = fallbackImage)} alt={event.Event_Name}
-                    className="w-full h-full object-cover grayscale" />
+                <div className="relative h-32 overflow-hidden bg-slate-100">
+                  <img
+                    src={getEventImage(event.Event_Image, event.category || event.Event_Type)}
+                    onError={(e) => handleEventImageError(e, event.category || event.Event_Type)}
+                    alt={event.Event_Name}
+                    className="w-full h-full object-cover grayscale"
+                  />
                   <div className="absolute inset-0 bg-black/30" />
                   <span className="absolute top-2 right-2 badge-chip bg-gray-800/80 text-white text-[10px]">Archived</span>
                 </div>

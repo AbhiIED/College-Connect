@@ -1,6 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Calendar, Tag, Clock } from "lucide-react";
+import { getNewsImage, handleNewsImageError } from "../../utils/imageUtils";
 
 export default function NewsDetailModal({ article, onClose }) {
   if (!article) return null;
@@ -33,9 +34,10 @@ export default function NewsDetailModal({ article, onClose }) {
           className="relative w-full max-w-3xl bg-white rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]"
         >
           {/* Header Image */}
-          <div className="relative h-64 sm:h-80 w-full shrink-0">
+          <div className="relative h-64 sm:h-80 w-full shrink-0 bg-slate-900">
             <img
-              src={article.Image_URL || "https://images.unsplash.com/photo-1504711434969-e33886168d6c?w=1200&q=80"}
+              src={getNewsImage(article.Image_URL, article.Category)}
+              onError={(e) => handleNewsImageError(e, article.Category)}
               alt={article.Title}
               className="w-full h-full object-cover"
             />

@@ -1,8 +1,9 @@
 import React from "react";
 import { UserPlus, Building2, GraduationCap, CalendarHeart } from "lucide-react";
 import maleDP from "../../assets/dp-male.png";
+import { getAvatarImage, handleAvatarError } from "../../utils/imageUtils";
 
-const AlumniDir = ({ name, graduationYear, course, jobTitle, companyName, onBookMentorship }) => {
+const AlumniDir = ({ name, graduationYear, course, jobTitle, companyName, onBookMentorship, profilePic }) => {
   return (
     <div className="w-full max-w-6xl mx-auto bg-white rounded-2xl border border-gray-100 shadow-sm 
       card-hover p-6 sm:p-8 grid grid-cols-1 md:grid-cols-[1fr_1.2fr_auto] items-center gap-6 mb-5
@@ -12,8 +13,9 @@ const AlumniDir = ({ name, graduationYear, course, jobTitle, companyName, onBook
       <div className="flex items-center gap-4">
         <div className="relative">
           <img 
-            src={maleDP}  
+            src={getAvatarImage(profilePic, name)}  
             alt={name}
+            onError={(e) => handleAvatarError(e, name)}
             className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover shadow-md ring-2 ring-indigo-100 
               group-hover:ring-indigo-300 transition-all duration-300"
           />

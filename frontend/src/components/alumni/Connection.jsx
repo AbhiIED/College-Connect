@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
 import {
   MessageCircle, Search, X, Users, Sparkles, Loader2,
   UserCheck, UserX, Clock, Briefcase, Building2, GraduationCap,
   Send, ChevronDown, Filter, ArrowRight, UserMinus, AlertTriangle
 } from "lucide-react";
+import { handleAvatarError } from "../../utils/imageUtils";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const getToken = () => localStorage.getItem("token");
@@ -22,7 +23,7 @@ const getInitials = (fname, lname) =>
   `${(fname || "?")[0]}${(lname || "?")[0]}`.toUpperCase();
 
 /* ═══════════════════════════ ConnectionCard ═══════════════════════════ */
-function ConnectionCard({ conn, onChat, onViewProfile, onRemove }) {
+function ConnectionCard({ conn, onChat, onViewProfile, onRemove, unreadCount = 0 }) {
   const name = `${conn.User_Fname} ${conn.User_Lname}`;
   const gradient = getGradient(conn.Connected_User_ID);
 
@@ -55,8 +56,12 @@ function ConnectionCard({ conn, onChat, onViewProfile, onRemove }) {
       <div className="px-5 -mt-8">
         <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white text-lg font-bold shadow-lg ring-4 ring-white`}>
           {conn.Profile_Pic && !conn.Profile_Pic.includes("default") ? (
-            <img src={conn.Profile_Pic.startsWith("http") ? conn.Profile_Pic : `${API}${conn.Profile_Pic}`}
-              alt={name} className="w-full h-full rounded-2xl object-cover" />
+            <img
+              src={conn.Profile_Pic.startsWith("http") ? conn.Profile_Pic : `${API}${conn.Profile_Pic}`}
+              onError={(e) => handleAvatarError(e, name)}
+              alt={name}
+              className="w-full h-full rounded-2xl object-cover"
+            />
           ) : getInitials(conn.User_Fname, conn.User_Lname)}
         </div>
       </div>
@@ -110,6 +115,11 @@ function ConnectionCard({ conn, onChat, onViewProfile, onRemove }) {
         <button onClick={() => onChat(conn)}
           className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow-md transition-all active:scale-[0.98]">
           <MessageCircle className="w-4 h-4" /> Message
+          {unreadCount > 0 && (
+            <span className="bg-amber-400 text-gray-900 text-xs font-extrabold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+              {unreadCount} new
+            </span>
+          )}
         </button>
       </div>
     </div>
@@ -131,8 +141,12 @@ function PendingRequestCard({ req, onRespond }) {
     <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
       <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getGradient(req.Sender_ID)} flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0`}>
         {req.Profile_Pic && !req.Profile_Pic.includes("default") ? (
-          <img src={req.Profile_Pic.startsWith("http") ? req.Profile_Pic : `${API}${req.Profile_Pic}`}
-            alt={name} className="w-full h-full rounded-xl object-cover" />
+          <img
+            src={req.Profile_Pic.startsWith("http") ? req.Profile_Pic : `${API}${req.Profile_Pic}`}
+            onError={(e) => handleAvatarError(e, name)}
+            alt={name}
+            className="w-full h-full rounded-xl object-cover"
+          />
         ) : getInitials(req.User_Fname, req.User_Lname)}
       </div>
       <div className="flex-1 min-w-0">
@@ -156,94 +170,231 @@ function PendingRequestCard({ req, onRespond }) {
 /* ═══════════════════════════ ChatWindow ═══════════════════════════ */
 function ChatWindow({ user, onClose }) {
   const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
-  const name = `${user.User_Fname} ${user.User_Lname}`;
-  const currentUserId = JSON.parse(localStorage.getItem("user") || "{}").User_ID;
-  const partnerId = user.Connected_User_ID || user.User_ID || user.Sender_ID;
+  const name = `${user.User_Fname || ""} ${user.User_Lname || ""}`.trim() || "User";
+  const userRole = user.User_Type_ID === 2 ? "Student" : (user.Job_Title || "Alumni");
+
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  let currentUserId = Number(storedUser.User_ID || storedUser.id);
+  if (!currentUserId) {
+    try {
+      const token = getToken();
+      if (token) {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        currentUserId = Number(payload.id || payload.User_ID);
+      }
+    } catch {}
+  }
+  const partnerId = Number(user.Connected_User_ID || user.User_ID || user.Sender_ID);
+
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const formatTime = (ts) => {
+    if (!ts) return "";
+    try {
+      return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return "";
+    }
+  };
+
+  // 1. Fetch message history & connect WebSocket
   useEffect(() => {
-    // Establish socket connection to backend URL
-    socketRef.current = io(API);
+    let isMounted = true;
 
-    // Register active user session
-    socketRef.current.emit("register_user", currentUserId);
+    const fetchHistory = async () => {
+      try {
+        setLoading(true);
+        const token = getToken();
+        const res = await fetch(`${API}/chat/${partnerId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setMessages(Array.isArray(data) ? data : []);
+          }
+        } else {
+          console.error("Failed to load chat history:", res.statusText);
+        }
+      } catch (err) {
+        console.error("Error fetching chat messages:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
 
-    // Register listener for incoming real-time messages
-    socketRef.current.on("receive_message", (msg) => {
-      if (msg.Sender_ID === partnerId) {
-        setMessages((prev) => [...prev, msg]);
+    if (partnerId) {
+      fetchHistory();
+    }
+
+    // 2. Establish Socket.io connection
+    const socket = io(API, {
+      transports: ["websocket", "polling"],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log(`🔌 Connected to chat socket: ${socket.id} (registering as user ${currentUserId})`);
+      if (currentUserId) {
+        socket.emit("register_user", currentUserId);
       }
     });
 
-    // Cleanup connection
+    if (socket.connected && currentUserId) {
+      socket.emit("register_user", currentUserId);
+    }
+
+    // 3. Listen for incoming messages
+    socket.on("receive_message", (msg) => {
+      console.log(`📨 [Chat] Received socket message:`, msg);
+      const msgSender = Number(msg.Sender_ID);
+      const msgReceiver = Number(msg.Receiver_ID);
+
+      // If message is from our partner, or an echo of our own message to this partner
+      const isFromPartner = msgSender === partnerId;
+      const isMyEcho = msgSender === currentUserId && msgReceiver === partnerId;
+
+      if (isFromPartner || isMyEcho) {
+        setMessages((prev) => {
+          if (msg.Message_ID && prev.some((m) => m.Message_ID === msg.Message_ID)) {
+            return prev;
+          }
+          return [...prev, msg];
+        });
+      }
+    });
+
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 150);
+
     return () => {
-      socketRef.current.disconnect();
+      isMounted = false;
+      socket.disconnect();
     };
   }, [partnerId, currentUserId]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, loading]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim()) return;
+
+    const trimmed = input.trim();
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
     const msgPayload = {
       senderId: currentUserId,
       receiverId: partnerId,
-      text: input
+      text: trimmed
     };
 
-    // Broadcast message via WebSockets
-    socketRef.current.emit("send_message", msgPayload);
-
-    // Instantly push to screen locally
+    // Optimistically push to local messages list
     const localMsg = {
-      Message_ID: Math.random(),
+      Message_ID: tempId,
       Sender_ID: currentUserId,
       Receiver_ID: partnerId,
-      Message: input,
-      Sent_At: new Date()
+      Message: trimmed,
+      Sent_At: new Date().toISOString()
     };
 
     setMessages((prev) => [...prev, localMsg]);
     setInput("");
+
+    // Broadcast message via WebSockets
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("send_message", msgPayload);
+    } else {
+      // Fallback: Send via REST API if socket is temporarily disconnected
+      try {
+        await fetch(`${API}/chat/send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getToken()}`
+          },
+          body: JSON.stringify({
+            receiverId: partnerId,
+            message: trimmed
+          })
+        });
+      } catch (err) {
+        console.error("Failed to send message via fallback REST API:", err);
+      }
+    }
   };
 
   return createPortal(
-    <div className="fixed bottom-6 right-6 w-80 h-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-[9999] overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
-      <div className="flex justify-between items-center bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-xs font-bold`}>
-            {getInitials(user.User_Fname, user.User_Lname)}
+    <div className="fixed bottom-6 right-6 w-84 sm:w-96 h-[460px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-[9999] overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
+      {/* Header */}
+      <div className="flex justify-between items-center bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-xs font-bold text-white overflow-hidden shadow-inner">
+              {user.Profile_Pic && !user.Profile_Pic.includes("default") ? (
+                <img
+                  src={user.Profile_Pic.startsWith("http") ? user.Profile_Pic : `${API}${user.Profile_Pic}`}
+                  onError={(e) => handleAvatarError(e, name)}
+                  alt={name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                getInitials(user.User_Fname, user.User_Lname)
+              )}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-indigo-600 rounded-full" />
           </div>
-          <h2 className="font-semibold text-sm truncate">{name}</h2>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-sm truncate text-white leading-tight">{name}</h2>
+            <p className="text-[11px] text-indigo-100/80 truncate">{userRole}</p>
+          </div>
         </div>
-        <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/20 transition">
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/20 transition text-white/90 hover:text-white" title="Close chat">
           <X size={16} />
         </button>
       </div>
 
-      <div className="flex-1 p-4 overflow-y-auto text-sm space-y-2">
-        {messages.length === 0 ? (
-          <div className="text-center py-8">
-            <MessageCircle className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-            <p className="text-gray-400 text-xs">Start a conversation with {user.User_Fname}</p>
+      {/* Messages list */}
+      <div className="flex-1 p-4 overflow-y-auto text-sm space-y-2.5 bg-slate-50/50">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-10">
+            <Loader2 className="w-6 h-6 text-indigo-600 animate-spin mb-2" />
+            <p className="text-gray-400 text-xs font-medium">Loading conversation...</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mb-2.5 shadow-sm">
+              <MessageCircle className="w-6 h-6 text-indigo-500" />
+            </div>
+            <p className="font-semibold text-gray-700 text-xs">No messages yet</p>
+            <p className="text-gray-400 text-[11px] mt-0.5">Send a message to start connecting with {user.User_Fname || "them"}.</p>
           </div>
         ) : (
           messages.map((msg, i) => {
-            const isMe = msg.Sender_ID === currentUserId;
+            const isMe = Number(msg.Sender_ID) === currentUserId;
             return (
-              <div key={msg.Message_ID || i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] px-3 py-2 rounded-xl text-sm ${
-                  isMe ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-800"
-                }`}>{msg.Message}</div>
+              <div key={msg.Message_ID || i} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                <div className={`max-w-[80%] px-3.5 py-2 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                  isMe 
+                    ? "bg-indigo-600 text-white rounded-br-xs" 
+                    : "bg-white text-gray-800 rounded-bl-xs border border-gray-200/70"
+                }`}>
+                  <p className="break-words whitespace-pre-wrap">{msg.Message}</p>
+                </div>
+                <span className="text-[10px] text-gray-400 mt-0.5 px-1 font-medium">
+                  {formatTime(msg.Sent_At)}
+                </span>
               </div>
             );
           })
@@ -251,17 +402,24 @@ function ChatWindow({ user, onClose }) {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex items-center gap-2 p-3 border-t border-gray-100 bg-white">
-        <input type="text" value={input}
+      {/* Input bar */}
+      <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex items-center gap-2 p-3 border-t border-gray-100 bg-white">
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-          placeholder="Type a message..." />
-        <button onClick={sendMessage}
-          className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm">
-          <Send size={14} />
+          className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-all"
+          placeholder="Type a message..."
+        />
+        <button
+          type="submit"
+          disabled={!input.trim()}
+          className="p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition shadow-sm flex-shrink-0"
+        >
+          <Send size={15} />
         </button>
-      </div>
+      </form>
     </div>,
     document.body
   );
@@ -270,8 +428,10 @@ function ChatWindow({ user, onClose }) {
 /* ═══════════════════════════ Main Component ═══════════════════════════ */
 export default function Connections() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [connections, setConnections] = useState([]);
   const [pending, setPending] = useState([]);
+  const [unreadMap, setUnreadMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -285,9 +445,10 @@ export default function Connections() {
         const token = getToken();
         const headers = { Authorization: `Bearer ${token}` };
 
-        const [connRes, pendRes] = await Promise.all([
+        const [connRes, pendRes, unreadRes] = await Promise.all([
           fetch(`${API}/connections`, { headers }),
           fetch(`${API}/connections/pending`, { headers }),
+          fetch(`${API}/chat/unread/by-user`, { headers }).catch(() => ({ ok: false })),
         ]);
 
         if (!connRes.ok || !pendRes.ok) {
@@ -296,8 +457,21 @@ export default function Connections() {
         }
 
         const [connData, pendData] = await Promise.all([connRes.json(), pendRes.json()]);
+        const unreadData = unreadRes.ok ? await unreadRes.json() : {};
+
         setConnections(connData);
         setPending(pendData);
+        setUnreadMap(unreadData || {});
+
+        // Auto-open chat if directed from profile with state
+        if (location.state?.chatUserId) {
+          const target = connData.find(
+            (c) => Number(c.Connected_User_ID) === Number(location.state.chatUserId)
+          );
+          if (target) {
+            setChatUser(target);
+          }
+        }
       } catch (err) {
         console.error("Error:", err);
         setError(err.message);
@@ -306,7 +480,7 @@ export default function Connections() {
       }
     };
     fetchData();
-  }, []);
+  }, [location.state?.chatUserId]);
 
   const handleRespond = async (connectionId, status) => {
     try {
@@ -477,10 +651,18 @@ export default function Connections() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {filtered.map((conn) => (
-                  <ConnectionCard key={conn.Connection_ID} conn={conn}
-                    onChat={(c) => setChatUser(c)}
+                  <ConnectionCard
+                    key={conn.Connection_ID}
+                    conn={conn}
+                    unreadCount={unreadMap[conn.Connected_User_ID] || 0}
+                    onChat={(c) => {
+                      setChatUser(c);
+                      const pid = Number(c.Connected_User_ID || c.User_ID);
+                      setUnreadMap((prev) => ({ ...prev, [pid]: 0 }));
+                    }}
                     onRemove={(c) => setConfirmRemove(c)}
-                    onViewProfile={(c) => navigate(`/alumni/${c.Connected_User_ID}`)} />
+                    onViewProfile={(c) => navigate(`/alumni/${c.Connected_User_ID}`)}
+                  />
                 ))}
               </div>
             )}

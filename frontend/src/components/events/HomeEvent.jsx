@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Calendar, MapPin, ExternalLink, ArrowRight, Clock, Video } from "lucide-react";
 import fallbackImage from "../../assets/event-image.webp";
+import { getEventImage, handleEventImageError } from "../../utils/imageUtils";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -80,10 +81,11 @@ export default function HomeEvent() {
               className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col lg:flex-row group"
             >
               {/* Image */}
-              <div className="relative lg:w-72 h-48 lg:h-auto flex-shrink-0 overflow-hidden">
+              <div className="relative lg:w-72 h-48 lg:h-auto flex-shrink-0 overflow-hidden bg-slate-100">
                 <img
-                  src={event.Event_Image || fallbackImage}
+                  src={getEventImage(event.Event_Image, event.Event_Type)}
                   alt={event.Event_Name}
+                  onError={(e) => handleEventImageError(e, event.Event_Type)}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 {/* Date badge */}

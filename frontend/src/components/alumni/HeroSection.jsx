@@ -160,10 +160,11 @@ export default function HeroSection() {
                 <div className="relative mb-3">
                   <div className="w-20 h-20 rounded-2xl overflow-hidden bg-indigo-50 shadow-sm">
                     <img
-                      src={member.img}
+                      src={member.img || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=6366f1&color=fff&size=80`}
                       alt={member.name}
                       className="w-full h-full object-cover"
                       onError={(e) => {
+                        e.target.onerror = null;
                         e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=6366f1&color=fff&size=80`;
                       }}
                     />

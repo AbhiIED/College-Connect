@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Image, X, Sparkles, Upload, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { getAvatarImage, handleAvatarError } from "../../utils/imageUtils";
 
 export default function PostForm() {
   const navigate = useNavigate();
@@ -148,7 +149,8 @@ export default function PostForm() {
           <div className="flex items-center gap-4 px-7 py-5 border-b border-slate-100">
             <div className="relative">
               <img
-                src={user.profilePic || "/dp-male.png"}
+                src={getAvatarImage(user.profilePic, `${user.firstName || ''} ${user.lastName || ''}`)}
+                onError={(e) => handleAvatarError(e, `${user.firstName || ''} ${user.lastName || ''}`)}
                 alt={user.firstName || "User"}
                 className="w-12 h-12 rounded-full object-cover ring-2 ring-indigo-200"
               />

@@ -121,49 +121,67 @@ const activeUsers = new Map();
 io.on("connection", (socket) => {
   console.log(`🔌 Client connected to WebSocket: ${socket.id}`);
 
-  // Register user with their active socket ID
+  // Register user with their active socket ID and join personal room
   socket.on("register_user", (userId) => {
     if (userId) {
-      activeUsers.set(String(userId), socket.id);
-      console.log(`👤 User ${userId} registered with socket ${socket.id}`);
+      const uid = String(userId);
+      socket.userId = uid;
+      socket.join(uid);
+      socket.join(`user_${uid}`);
+      activeUsers.set(uid, socket.id);
+      console.log(`👤 User ${userId} registered with socket ${socket.id} (rooms: ${uid}, user_${uid})`);
     }
   });
 
   // Persist message to DB and relay in real-time if receiver is online
   socket.on("send_message", async ({ senderId, receiverId, text }) => {
-    if (!receiverId || !text || !text.trim()) return;
+    if (!senderId || !receiverId || !text || !text.trim()) {
+      console.warn("⚠️ Invalid send_message payload received:", { senderId, receiverId, text });
+      return;
+    }
 
+    const cleanSenderId = Number(senderId);
+    const cleanReceiverId = Number(receiverId);
+    const cleanText = text.trim();
+    const sentAt = new Date();
+
+    let insertedId = null;
     // Always persist to database so messages are never lost
     try {
-      await pool.query(
-        `INSERT INTO Chat_Message (Sender_ID, Receiver_ID, Message) VALUES (?, ?, ?)`,
-        [senderId, receiverId, text]
+      const [insertResult] = await pool.query(
+        `INSERT INTO Chat_Message (Sender_ID, Receiver_ID, Message, Sent_At) VALUES (?, ?, ?, ?)`,
+        [cleanSenderId, cleanReceiverId, cleanText, sentAt]
       );
+      insertedId = insertResult.insertId;
     } catch (dbErr) {
       console.error(`❌ Failed to persist chat message:`, dbErr.message);
     }
 
-    // Relay in real-time if the receiver is currently connected
-    const receiverSocketId = activeUsers.get(String(receiverId));
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("receive_message", {
-        Sender_ID: senderId,
-        Receiver_ID: receiverId,
-        Message: text,
-        Sent_At: new Date()
-      });
-      console.log(`📨 Message relayed from User ${senderId} to User ${receiverId}`);
-    }
+    const payload = {
+      Message_ID: insertedId || Date.now(),
+      Sender_ID: cleanSenderId,
+      Receiver_ID: cleanReceiverId,
+      Message: cleanText,
+      Is_Read: 0,
+      Sent_At: sentAt.toISOString()
+    };
+
+    // Relay in real-time to receiver via room and direct socket
+    const receiverRoom = io.sockets.adapter.rooms.get(`user_${cleanReceiverId}`);
+    const receiverCount = receiverRoom ? receiverRoom.size : 0;
+    console.log(`📨 Relaying message from User ${cleanSenderId} to User ${cleanReceiverId} (Receiver active sockets: ${receiverCount})`);
+
+    io.to(`user_${cleanReceiverId}`).to(String(cleanReceiverId)).emit("receive_message", payload);
+
+    // Also sync to other open windows/tabs of the sender
+    socket.to(`user_${cleanSenderId}`).to(String(cleanSenderId)).emit("receive_message", payload);
   });
 
   // Unregister user on disconnect
   socket.on("disconnect", () => {
-    for (let [userId, socketId] of activeUsers.entries()) {
-      if (socketId === socket.id) {
-        activeUsers.delete(userId);
-        console.log(`👤 User ${userId} disconnected.`);
-        break;
-      }
+    if (socket.userId && activeUsers.get(socket.userId) === socket.id) {
+      activeUsers.delete(socket.userId);
+      console.log(`👤 User ${socket.userId} disconnected.`);
     }
   });
 });

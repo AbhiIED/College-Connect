@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { getAvatarImage, handleAvatarError } from "../../utils/imageUtils";
 import {
   Home,
   BookOpen,
@@ -326,7 +327,8 @@ export default function Navbar() {
                 <div className="h-8 w-8 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-indigo-200/50 flex-shrink-0">
                   {user.Profile_Pic ? (
                     <img
-                      src={user.Profile_Pic.startsWith("http") ? user.Profile_Pic : `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}${user.Profile_Pic}`}
+                      src={getAvatarImage(user.Profile_Pic, user.User_Fname || "User")}
+                      onError={(e) => handleAvatarError(e, user.User_Fname || "User")}
                       alt="profile"
                       className="w-full h-full object-cover"
                     />
